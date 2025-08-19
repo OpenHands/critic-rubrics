@@ -1,77 +1,195 @@
 """
-Trajectory rubrics dataclass for agent conversation analysis.
+Trajectory rubrics for conversation analysis.
 """
 
-from typing import Optional
 from pydantic import BaseModel, Field
-
 from ..core import Prediction
 
 
 class TrajectoryRubrics(BaseModel):
     """
-    Essential trajectory/conversation analysis rubrics.
-    
-    Focuses on the most important aspects of agent-user interactions.
+    Comprehensive trajectory analysis features based on Xingyao rubrics.
+    Includes user follow-up patterns, agent behavioral issues, and infrastructure problems.
     """
     
-    # Agent Issues
+    # USER FOLLOW-UP PATTERNS
+    clarification_or_restatement: Prediction = Field(
+        description="User clarifies/restates or corrects interpretation"
+    )
+    correction: Prediction = Field(
+        description="Agent understood intention but executed incorrectly"
+    )
+    direction_change: Prediction = Field(
+        description="User adds new constraints/intent or redirects plan/scope"
+    )
+    vcs_update_requests: Prediction = Field(
+        description="User instructs forward-moving VCS tasks (commit/push/PR)"
+    )
+    progress_or_scope_concern: Prediction = Field(
+        description="User flags slowness, overcomplexity, or scope bloat"
+    )
+    frustration_or_complaint: Prediction = Field(
+        description="User shows dissatisfaction or irritation"
+    )
+    removal_or_reversion_request: Prediction = Field(
+        description="User asks to remove code/files or revert changes"
+    )
+    other_user_issue: Prediction = Field(
+        description="Any other notable user concern not covered above"
+    )
+    
+    # AGENT BEHAVIORAL ISSUES
     misunderstood_intention: Prediction = Field(
         description="Agent misunderstood the user's goal/intent"
     )
-    
-    incomplete_task_execution: Prediction = Field(
-        description="Agent left the task incomplete or partially done"
+    did_not_follow_instruction: Prediction = Field(
+        description="Agent ignored or failed to comply with explicit instructions"
+    )
+    insufficient_analysis: Prediction = Field(
+        description="Didn't explore existing materials sufficiently before acting"
+    )
+    insufficient_clarification: Prediction = Field(
+        description="Failed to ask necessary questions when requirements were ambiguous"
+    )
+    improper_tool_use_or_setup: Prediction = Field(
+        description="Misused tools/commands or had missing/incorrect dependencies"
+    )
+    loop_behavior: Prediction = Field(
+        description="Repeats the same failed action 3+ times without strategy change"
+    )
+    insufficient_testing: Prediction = Field(
+        description="Skipped reasonable verification/tests for non-trivial changes"
+    )
+    insufficient_debugging: Prediction = Field(
+        description="Did not investigate or reduce failing behavior when needed"
+    )
+    incomplete_implementation: Prediction = Field(
+        description="Delivered unfinished or non-functioning work"
+    )
+    file_management_errors: Prediction = Field(
+        description="Wrong paths, overwrites, misplaced/extra files"
+    )
+    scope_creep: Prediction = Field(
+        description="Implemented unrequested features without approval"
+    )
+    risky_actions_or_permission: Prediction = Field(
+        description="Risky steps without user's explicit consent"
+    )
+    other_agent_issue: Prediction = Field(
+        description="Any other agent-side problem not covered above"
     )
     
-    unclear_communication: Prediction = Field(
-        description="Agent's communication was unclear or confusing"
+    # INFRASTRUCTURE ISSUES
+    infrastructure_external_issue: Prediction = Field(
+        description="Environment/platform limits outside agent control"
     )
-    
-    # User Patterns
-    user_requested_clarification: Prediction = Field(
-        description="User asked for clarification or more details"
+    infrastructure_agent_caused_issue: Prediction = Field(
+        description="Infrastructure faults introduced by agent's prior actions"
     )
-    
-    user_corrected_agent: Prediction = Field(
-        description="User corrected the agent's understanding or approach"
-    )
-    
-    # Quality Indicators
-    task_completed_successfully: Prediction = Field(
-        description="The task was completed successfully"
-    )
-    
-    user_satisfied_with_result: Prediction = Field(
-        description="User expressed satisfaction with the result"
-    )
-    
-    # Optional context fields
-    additional_notes: Optional[str] = Field(None, description="Additional observations")
-    
-    def get_issue_count(self) -> int:
-        """Count the number of issues detected."""
-        issues = [
-            self.misunderstood_intention,
-            self.incomplete_task_execution,
-            self.unclear_communication,
-            self.user_requested_clarification,
-            self.user_corrected_agent,
-        ]
-        return sum(1 for issue in issues if issue.detected)
     
     def get_quality_score(self) -> float:
-        """Calculate overall quality score (0-1)."""
-        positive_indicators = [
-            self.task_completed_successfully,
-            self.user_satisfied_with_result,
+        """Calculate overall quality score (0.0 to 1.0)."""
+        # Count agent behavioral issues (negative indicators)
+        agent_issues = [
+            self.misunderstood_intention.detected,
+            self.did_not_follow_instruction.detected,
+            self.insufficient_analysis.detected,
+            self.insufficient_clarification.detected,
+            self.improper_tool_use_or_setup.detected,
+            self.loop_behavior.detected,
+            self.insufficient_testing.detected,
+            self.insufficient_debugging.detected,
+            self.incomplete_implementation.detected,
+            self.file_management_errors.detected,
+            self.scope_creep.detected,
+            self.risky_actions_or_permission.detected,
+            self.other_agent_issue.detected,
         ]
-        positive_count = sum(1 for indicator in positive_indicators if indicator.detected)
         
-        issue_count = self.get_issue_count()
+        # Count user follow-up issues (also negative indicators)
+        user_issues = [
+            self.clarification_or_restatement.detected,
+            self.correction.detected,
+            self.direction_change.detected,
+            self.progress_or_scope_concern.detected,
+            self.frustration_or_complaint.detected,
+            self.removal_or_reversion_request.detected,
+            self.other_user_issue.detected,
+        ]
         
-        # Simple scoring: positive indicators boost score, issues reduce it
-        base_score = positive_count / len(positive_indicators)
-        penalty = min(0.5, issue_count * 0.1)  # Max 50% penalty
+        # Infrastructure issues (neutral - not agent's fault for external)
+        infrastructure_issues = [
+            self.infrastructure_agent_caused_issue.detected,  # This counts against agent
+        ]
         
-        return max(0.0, base_score - penalty)
+        total_negative = sum(agent_issues) + sum(user_issues) + sum(infrastructure_issues)
+        total_possible = len(agent_issues) + len(user_issues) + len(infrastructure_issues)
+        
+        # Quality score: 1.0 - (issues / total_possible)
+        return max(0.0, 1.0 - (total_negative / total_possible))
+    
+    def get_issue_count(self) -> int:
+        """Count total number of issues detected."""
+        all_issues = [
+            # User follow-up patterns
+            self.clarification_or_restatement.detected,
+            self.correction.detected,
+            self.direction_change.detected,
+            self.vcs_update_requests.detected,
+            self.progress_or_scope_concern.detected,
+            self.frustration_or_complaint.detected,
+            self.removal_or_reversion_request.detected,
+            self.other_user_issue.detected,
+            # Agent behavioral issues
+            self.misunderstood_intention.detected,
+            self.did_not_follow_instruction.detected,
+            self.insufficient_analysis.detected,
+            self.insufficient_clarification.detected,
+            self.improper_tool_use_or_setup.detected,
+            self.loop_behavior.detected,
+            self.insufficient_testing.detected,
+            self.insufficient_debugging.detected,
+            self.incomplete_implementation.detected,
+            self.file_management_errors.detected,
+            self.scope_creep.detected,
+            self.risky_actions_or_permission.detected,
+            self.other_agent_issue.detected,
+            # Infrastructure issues
+            self.infrastructure_external_issue.detected,
+            self.infrastructure_agent_caused_issue.detected,
+        ]
+        return sum(all_issues)
+    
+    def get_agent_issue_count(self) -> int:
+        """Count agent-specific behavioral issues."""
+        agent_issues = [
+            self.misunderstood_intention.detected,
+            self.did_not_follow_instruction.detected,
+            self.insufficient_analysis.detected,
+            self.insufficient_clarification.detected,
+            self.improper_tool_use_or_setup.detected,
+            self.loop_behavior.detected,
+            self.insufficient_testing.detected,
+            self.insufficient_debugging.detected,
+            self.incomplete_implementation.detected,
+            self.file_management_errors.detected,
+            self.scope_creep.detected,
+            self.risky_actions_or_permission.detected,
+            self.other_agent_issue.detected,
+            self.infrastructure_agent_caused_issue.detected,
+        ]
+        return sum(agent_issues)
+    
+    def get_user_followup_count(self) -> int:
+        """Count user follow-up patterns."""
+        user_issues = [
+            self.clarification_or_restatement.detected,
+            self.correction.detected,
+            self.direction_change.detected,
+            self.vcs_update_requests.detected,
+            self.progress_or_scope_concern.detected,
+            self.frustration_or_complaint.detected,
+            self.removal_or_reversion_request.detected,
+            self.other_user_issue.detected,
+        ]
+        return sum(user_issues)

@@ -68,9 +68,11 @@ def example_trajectory_analysis():
     result = annotator.annotate(conversation)
     
     print("Trajectory Analysis Results:")
-    print(f"Task completed successfully: {result.task_completed_successfully.detected}")
-    print(f"User satisfied: {result.user_satisfied_with_result.detected}")
-    print(f"Issues detected: {result.get_issue_count()}")
+    print(f"Agent misunderstood intention: {result.misunderstood_intention.detected}")
+    print(f"User requested clarification: {result.clarification_or_restatement.detected}")
+    print(f"Agent issues detected: {result.get_agent_issue_count()}")
+    print(f"User follow-ups: {result.get_user_followup_count()}")
+    print(f"Total issues: {result.get_issue_count()}")
     print(f"Quality score: {result.get_quality_score():.2f}")
 
 

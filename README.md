@@ -51,7 +51,7 @@ critic_rubrics/
 ├── core.py                    # Core Prediction dataclass
 ├── rubrics/                   # Rubric definitions
 │   ├── solvability.py         # SolvabilityRubrics (12 features)
-│   └── trajectory.py          # TrajectoryRubrics (7 features)
+│   └── trajectory.py          # TrajectoryRubrics (23 features)
 └── annotators/                # LLM annotator implementations
     ├── base.py               # BaseAnnotator
     ├── solvability/
