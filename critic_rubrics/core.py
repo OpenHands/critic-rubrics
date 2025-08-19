@@ -13,6 +13,12 @@ from math import log2
 from pydantic import BaseModel, Field
 
 
+class Prediction(BaseModel):
+    """Represents a prediction with detection result and rationale."""
+    detected: bool
+    rationale: str
+
+
 class RubricItem(BaseModel):
     """
     A single rubric item that can be evaluated.

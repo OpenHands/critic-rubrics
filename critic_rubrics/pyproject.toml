@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "unified-rubrics"
+name = "critic-rubrics"
 version = "0.1.0"
 description = "Unified system for LLM-based feature extraction and conversation analysis"
 readme = "README.md"
@@ -53,17 +53,17 @@ dev = [
     "pre-commit>=2.20.0",
 ]
 all = [
-    "unified-rubrics[llm,analysis,dev]",
+    "critic-rubrics[llm,analysis,dev]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/All-Hands-AI/research"
-Repository = "https://github.com/All-Hands-AI/research"
-Documentation = "https://github.com/All-Hands-AI/research/tree/main/unified_rubrics"
-Issues = "https://github.com/All-Hands-AI/research/issues"
+Homepage = "https://github.com/All-Hands-AI/critic-rubrics"
+Repository = "https://github.com/All-Hands-AI/critic-rubrics"
+Documentation = "https://github.com/All-Hands-AI/critic-rubrics/tree/main/critic_rubrics"
+Issues = "https://github.com/All-Hands-AI/critic-rubrics/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["unified_rubrics"]
+packages = ["critic_rubrics"]
 
 [tool.black]
 line-length = 100
@@ -124,14 +124,14 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-    "--cov=unified_rubrics",
+    "--cov=critic_rubrics",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-fail-under=80",
 ]
 
 [tool.coverage.run]
-source = ["unified_rubrics"]
+source = ["critic_rubrics"]
 omit = [
     "*/tests/*",
     "*/examples.py",
