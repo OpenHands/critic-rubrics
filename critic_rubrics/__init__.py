@@ -1,70 +1,40 @@
 """
-Critic Rubrics Package
-
-A comprehensive system for LLM-based feature extraction and conversation analysis.
-Supports multiple rubric types including solvability analysis, trajectory annotation,
-and custom feature extraction.
+Critic Rubrics - Unified rubrics system for LLM-based feature extraction and conversation analysis.
 """
 
-from .core import (
-    Prediction,
-    RubricItem,
-    RubricCategory,
-    RubricSet,
-    AnnotationResult,
-    RubricAnnotator,
-)
+from .core import Prediction
+from .rubrics.solvability import SolvabilityRubrics
+from .rubrics.trajectory import TrajectoryRubrics
+from .annotators.base import BaseAnnotator
+from .annotators.solvability.annotator import SolvabilityAnnotator
+from .annotators.trajectory.annotator import TrajectoryAnnotator
 
-from .rubrics import (
-    SolvabilityRubrics,
-    TrajectoryRubrics,
-    ConversationRubrics,
-)
+__version__ = "0.1.0"
 
-from .annotators import (
-    BaseAnnotator,
-    SolvabilityAnnotator,
-    TrajectoryAnnotator,
-)
-
-# Convenience functions for creating annotators
+# Convenience factory functions
 def create_solvability_annotator(
     model: str = "gpt-4o-mini",
     api_key: str = None,
-    **kwargs
 ) -> SolvabilityAnnotator:
     """Create a solvability annotator with default settings."""
-    return SolvabilityAnnotator(model=model, api_key=api_key, **kwargs)
+    return SolvabilityAnnotator(model=model, api_key=api_key)
+
 
 def create_trajectory_annotator(
     model: str = "gpt-4o-mini", 
     api_key: str = None,
-    **kwargs
 ) -> TrajectoryAnnotator:
     """Create a trajectory annotator with default settings."""
-    return TrajectoryAnnotator(model=model, api_key=api_key, **kwargs)
+    return TrajectoryAnnotator(model=model, api_key=api_key)
 
-__version__ = "0.1.0"
+
 __all__ = [
-    # Core classes
     "Prediction",
-    "RubricItem",
-    "RubricCategory", 
-    "RubricSet",
-    "AnnotationResult",
-    "RubricAnnotator",
-    
-    # Rubric dataclasses
     "SolvabilityRubrics",
-    "TrajectoryRubrics",
-    "ConversationRubrics",
-    
-    # Annotators
+    "TrajectoryRubrics", 
     "BaseAnnotator",
     "SolvabilityAnnotator",
     "TrajectoryAnnotator",
-    
-    # Convenience functions
     "create_solvability_annotator",
     "create_trajectory_annotator",
 ]
