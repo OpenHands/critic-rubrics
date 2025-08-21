@@ -30,26 +30,50 @@ class BaseAnnotator(ABC, Generic[T]):
         """Get system message for the annotator. Override in subclasses."""
         return None
     
-    def annotate(self, content: str) -> T:
-        """Annotate content and return rubric result."""
-        try:
-            import litellm
-            
-            # Build messages
+    def get_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate the raw litellm completion request format.
+        
+        Args:
+            request_data: Dict with 'messages_for_annotator' and 'tools_for_annotator' fields,
+                         OR a simple string content for backward compatibility
+        
+        Returns:
+            Dict in litellm completion format
+        """
+        # Handle backward compatibility - if it's a string, convert to message format
+        if isinstance(request_data, str):
             messages = []
             system_message = self._get_system_message()
             if system_message:
                 messages.append({"role": "system", "content": system_message})
-            messages.append({"role": "user", "content": content})
+            messages.append({"role": "user", "content": request_data})
+            tools = [self._get_tool_schema()]
+        else:
+            # Use the provided messages and tools from the request data
+            messages = request_data['messages_for_annotator']
+            tools = [request_data['tools_for_annotator']]
+        
+        return {
+            "model": self.model,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": "required",
+            "temperature": 0.1,
+            "api_key": self.api_key,
+        }
+    
+    def annotate(self, request_data) -> T:
+        """Annotate content and return rubric result.
+        
+        Args:
+            request_data: Dict with 'messages_for_annotator' and 'tools_for_annotator' fields,
+                         OR a simple string content for backward compatibility
+        """
+        try:
+            import litellm
             
-            response = litellm.completion(
-                model=self.model,
-                messages=messages,
-                tools=[self._get_tool_schema()],
-                tool_choice="required",
-                temperature=0.1,
-                api_key=self.api_key,
-            )
+            request = self.get_request(request_data)
+            response = litellm.completion(**request)
             
             tool_call = response.choices[0].message.tool_calls[0]
             tool_call_args = json.loads(tool_call.function.arguments)

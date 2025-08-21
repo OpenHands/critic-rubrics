@@ -8,6 +8,7 @@ from .rubrics.trajectory import TrajectoryRubrics
 from .annotators.base import BaseAnnotator
 from .annotators.solvability.annotator import SolvabilityAnnotator
 from .annotators.trajectory.annotator import TrajectoryAnnotator
+from .batch_processor import BatchProcessor, BatchConfig
 
 __version__ = "0.1.0"
 
@@ -28,6 +29,11 @@ def create_trajectory_annotator(
     return TrajectoryAnnotator(model=model, api_key=api_key)
 
 
+def create_batch_processor(annotator, config=None) -> BatchProcessor:
+    """Create a batch processor for an annotator."""
+    return BatchProcessor(annotator, config)
+
+
 __all__ = [
     "Prediction",
     "SolvabilityRubrics",
@@ -35,6 +41,9 @@ __all__ = [
     "BaseAnnotator",
     "SolvabilityAnnotator",
     "TrajectoryAnnotator",
+    "BatchProcessor",
+    "BatchConfig",
     "create_solvability_annotator",
     "create_trajectory_annotator",
+    "create_batch_processor",
 ]
