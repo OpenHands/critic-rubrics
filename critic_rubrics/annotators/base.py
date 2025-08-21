@@ -26,14 +26,25 @@ class BaseAnnotator(ABC, Generic[T]):
         """Parse LLM tool call result into rubric dataclass."""
         pass
     
+    def _get_system_message(self) -> Optional[str]:
+        """Get system message for the annotator. Override in subclasses."""
+        return None
+    
     def annotate(self, content: str) -> T:
         """Annotate content and return rubric result."""
         try:
             import litellm
             
+            # Build messages
+            messages = []
+            system_message = self._get_system_message()
+            if system_message:
+                messages.append({"role": "system", "content": system_message})
+            messages.append({"role": "user", "content": content})
+            
             response = litellm.completion(
                 model=self.model,
-                messages=[{"role": "user", "content": content}],
+                messages=messages,
                 tools=[self._get_tool_schema()],
                 tool_choice="required",
                 temperature=0.1,
