@@ -85,16 +85,14 @@ critic_rubrics/
 │   ├── solvability.py         # SolvabilityRubrics (12 features)
 │   └── trajectory.py          # TrajectoryRubrics (23 features)
 └── annotators/                # LLM annotator implementations
-
-Request timeouts: factories accept `request_timeout` which is propagated to litellm as `timeout`.
-This helps avoid long-hanging requests and improves robustness in batch/async usage.
-
     ├── base.py               # BaseAnnotator
     ├── solvability/
     │   └── annotator.py
     └── trajectory/
         └── annotator.py
 ```
+
+Request timeouts: factories accept `request_timeout` which is propagated to litellm as `timeout`. This helps avoid long-hanging requests and improves robustness in batch/async usage.
 
 ## Key Features
 
