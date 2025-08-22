@@ -398,6 +398,8 @@ class BatchProcessor:
                     try:
                         acquire_rate_slot()
                         litellm_request = self.annotator.get_request(request_data)
+                        if self.config.request_timeout is not None:
+                            litellm_request["timeout"] = self.config.request_timeout
                         response = litellm.completion(**litellm_request)
 
                         choices = getattr(response, 'choices', None)
