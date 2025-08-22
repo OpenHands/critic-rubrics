@@ -3,18 +3,24 @@ Minimal base annotator class.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, TypeVar, Generic
+from typing import Dict, Any, Optional, TypeVar, Generic, Union
 import json
+import logging
 
 T = TypeVar('T')
+logger = logging.getLogger(__name__)
+
 
 
 class BaseAnnotator(ABC, Generic[T]):
     """Minimal base class for LLM-based rubric annotators."""
     
-    def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None):
+    def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None, *, temperature: float = 0.1, max_tokens: int = 2048, request_timeout: Optional[float] = None):
         self.model = model
         self.api_key = api_key
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.request_timeout = request_timeout
     
     @abstractmethod
     def _get_tool_schema(self) -> Dict[str, Any]:
@@ -30,7 +36,7 @@ class BaseAnnotator(ABC, Generic[T]):
         """Get system message for the annotator. Override in subclasses."""
         return None
     
-    def get_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def get_request(self, request_data: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
         """Generate the raw litellm completion request format.
         
         Args:
@@ -51,18 +57,37 @@ class BaseAnnotator(ABC, Generic[T]):
         else:
             # Use the provided messages and tools from the request data
             messages = request_data['messages_for_annotator']
-            tools = [request_data['tools_for_annotator']]
+            
+            # Validate provided tool schema against annotator's schema
+            provided_tool = request_data.get('tools_for_annotator')
+            expected_tool = self._get_tool_schema()
+            try:
+                expected_props = set(expected_tool['function']['parameters']['properties'].keys())
+                provided_props = set(provided_tool['function']['parameters']['properties'].keys()) if provided_tool else set()
+                if not provided_props or expected_props != provided_props:
+                    logger.warning("Provided tool schema does not match annotator schema; using internal schema.")
+                    tools = [expected_tool]
+                else:
+                    tools = [provided_tool]
+            except Exception:
+                logger.warning("Invalid provided tool schema; falling back to internal schema.")
+                tools = [expected_tool]
         
-        return {
+        request = {
             "model": self.model,
             "messages": messages,
             "tools": tools,
             "tool_choice": "required",
-            "temperature": 0.1,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
             "api_key": self.api_key,
         }
+        if self.request_timeout is not None:
+            request["timeout"] = self.request_timeout
+        return request
+
     
-    def annotate(self, request_data) -> T:
+    def annotate(self, request_data: Union[str, Dict[str, Any]]) -> T:
         """Annotate content and return rubric result.
         
         Args:
@@ -75,8 +100,27 @@ class BaseAnnotator(ABC, Generic[T]):
             request = self.get_request(request_data)
             response = litellm.completion(**request)
             
-            tool_call = response.choices[0].message.tool_calls[0]
-            tool_call_args = json.loads(tool_call.function.arguments)
+            # Robust parsing with actionable errors
+            choices = getattr(response, 'choices', None)
+            if not choices:
+                raise ValueError("No choices in response; ensure model supports tool calls and request is valid")
+            message = getattr(choices[0], 'message', None)
+            if message is None:
+                raise ValueError("Malformed response: missing message in first choice")
+            tool_calls = getattr(message, 'tool_calls', None)
+            if not tool_calls:
+                # Provide hint about tool usage
+                raise ValueError("Model did not call any tools; ensure tool_choice='required' and schema matches expected")
+            first_call = tool_calls[0]
+            try:
+                args_str = first_call.function.arguments
+            except Exception:
+                raise ValueError("Malformed tool call: missing function.arguments")
+            try:
+                tool_call_args = json.loads(args_str)
+            except Exception as e:
+                raise ValueError(f"Tool arguments are not valid JSON: {e}")
+            
             return self._parse_result(tool_call_args)
             
         except ImportError:

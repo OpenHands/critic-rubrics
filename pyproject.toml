@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "critic-rubrics"
+version = "0.1.0"
+description = "Unified rubrics system for LLM-based feature extraction and conversation analysis"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{name = "All-Hands-AI"}]
+license = {text = "MIT"}
+dependencies = [
+  "pydantic>=2.0.0",
+  "litellm>=1.40.0",
+]
+
+[project.optional-dependencies]
+providers = [
+  "openai>=1.0.0",
+  "anthropic>=0.34.0",
+  "requests>=2.31.0",
+]
+
+[tool.setuptools]
+packages = ["critic_rubrics"]
+
+[tool.setuptools.package-data]
+critic_rubrics = ["py.typed"]

@@ -9,8 +9,6 @@ This example shows how to:
 4. Use async processing for real-time requests with rate limiting
 """
 
-import json
-import os
 from critic_rubrics import (
     create_trajectory_annotator, 
     create_solvability_annotator,
@@ -19,13 +17,14 @@ from critic_rubrics import (
 )
 
 
+
 def example_string_format():
     """Example using simple string format (backward compatibility)."""
     print("=" * 60)
     print("EXAMPLE 1: String Format (Backward Compatibility)")
     print("=" * 60)
     
-    annotator = create_trajectory_annotator()
+    annotator = create_trajectory_annotator(request_timeout=20.0)
     
     # Simple string input
     conversation = "User: Can you help me debug this Python error? Agent: Sure, what's the error?"
@@ -49,7 +48,7 @@ def example_structured_format():
     print("EXAMPLE 2: Structured Format (Research Script Compatible)")
     print("=" * 60)
     
-    annotator = create_trajectory_annotator()
+    annotator = create_trajectory_annotator(request_timeout=20.0)
     
     # Structured format like in the research scripts
     request_data = {
@@ -74,7 +73,7 @@ def example_structured_format():
         'tools_for_annotator': {
             'type': 'function',
             'function': {
-                'name': 'analyze_trajectory',
+                'name': 'analyze_conversation_trajectory',
                 'description': 'Analyze conversation trajectory for issues',
                 'parameters': {
                     'type': 'object',
@@ -110,7 +109,7 @@ def example_batch_processing():
     print("=" * 60)
     
     # Create annotator and batch processor
-    annotator = create_trajectory_annotator()
+    annotator = create_trajectory_annotator(request_timeout=20.0)
     config = BatchConfig(
         provider="openai",
         batch_size=100,
@@ -129,7 +128,7 @@ def example_batch_processing():
             'tools_for_annotator': {
                 'type': 'function',
                 'function': {
-                    'name': 'analyze_trajectory',
+                    'name': 'analyze_conversation_trajectory',
                     'description': 'Analyze conversation',
                     'parameters': {'type': 'object', 'properties': {}}
                 }
@@ -144,7 +143,7 @@ def example_batch_processing():
             'tools_for_annotator': {
                 'type': 'function',
                 'function': {
-                    'name': 'analyze_trajectory',
+                    'name': 'analyze_conversation_trajectory',
                     'description': 'Analyze conversation',
                     'parameters': {'type': 'object', 'properties': {}}
                 }
@@ -186,7 +185,7 @@ def example_provider_comparison():
     print("EXAMPLE 4: Provider Format Comparison")
     print("=" * 60)
     
-    annotator = create_solvability_annotator()
+    annotator = create_solvability_annotator(request_timeout=20.0)
     batch_processor = create_batch_processor(annotator)
     
     request_data = {
@@ -196,7 +195,7 @@ def example_provider_comparison():
         'tools_for_annotator': {
             'type': 'function',
             'function': {
-                'name': 'analyze_solvability',
+                'name': 'analyze_issue_solvability',
                 'description': 'Analyze issue solvability',
                 'parameters': {'type': 'object', 'properties': {}}
             }

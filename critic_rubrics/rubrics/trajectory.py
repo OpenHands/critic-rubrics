@@ -88,7 +88,15 @@ class TrajectoryRubrics(BaseModel):
     )
     
     def get_quality_score(self) -> float:
-        """Calculate overall quality score (0.0 to 1.0)."""
+        """Calculate overall quality score (0.0 to 1.0).
+
+        Notes on category weighting:
+        - We intentionally DO NOT penalize vcs_update_requests in quality scoring.
+          These are often forward-moving workflow requests (commit/push/PR) that
+          do not, by themselves, indicate poor agent behavior. They are still
+          counted in get_issue_count() for observability, but excluded from the
+          negative signal here.
+        """
         # Count agent behavioral issues (negative indicators)
         agent_issues = [
             self.misunderstood_intention.detected,
@@ -111,6 +119,7 @@ class TrajectoryRubrics(BaseModel):
             self.clarification_or_restatement.detected,
             self.correction.detected,
             self.direction_change.detected,
+            # Intentionally exclude vcs_update_requests from penalty
             self.progress_or_scope_concern.detected,
             self.frustration_or_complaint.detected,
             self.removal_or_reversion_request.detected,

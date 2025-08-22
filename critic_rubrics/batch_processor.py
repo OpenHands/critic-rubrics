@@ -6,7 +6,7 @@ import json
 import os
 import time
 import logging
-from typing import Dict, List, Any, Optional, Union, TypeVar
+from typing import Dict, List, Any, Optional, Union, TypeVar, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
@@ -28,6 +28,8 @@ class BatchConfig:
     output_folder: str = "./batch_results"
     max_tokens: int = 8192
     temperature: float = 0.1
+
+    request_timeout: Optional[float] = None
 
 
 class BatchProcessor:
@@ -53,46 +55,41 @@ class BatchProcessor:
                 "messages": litellm_request["messages"],
                 "tools": litellm_request["tools"],
                 "tool_choice": litellm_request["tool_choice"],
-                "temperature": litellm_request["temperature"],
-                "max_tokens": self.config.max_tokens
+                "temperature": getattr(self.annotator, "temperature", self.config.temperature),
+                "max_tokens": getattr(self.annotator, "max_tokens", self.config.max_tokens)
             }
         }
     
     def to_anthropic_batch_request(self, request_data: Dict[str, Any], custom_id: str) -> Dict[str, Any]:
-        """Convert annotator request to Anthropic batch format."""
+        """Convert annotator request to Anthropic batch format as a serializable dict."""
         try:
             from litellm.llms.anthropic.chat.transformation import AnthropicConfig
-            import anthropic
-            from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
-            from anthropic.types.messages.batch_create_params import Request
         except ImportError:
             raise ImportError("Anthropic dependencies not available. Install with: pip install anthropic")
         
         litellm_request = self.annotator.get_request(request_data)
         
-        # Use litellm's Anthropic config to transform the request
         anthropic_config = AnthropicConfig()
         tools, _ = anthropic_config._map_tools(litellm_request["tools"])
-        
         transformed_request = anthropic_config.transform_request(
             model=litellm_request["model"],
             messages=litellm_request["messages"],
             optional_params={
                 'tools': tools,
-                'max_tokens': self.config.max_tokens,
+                'max_tokens': getattr(self.annotator, "max_tokens", self.config.max_tokens),
             },
             litellm_params={},
             headers={},
         )
         
-        request = Request(
-            custom_id=custom_id,
-            params=MessageCreateParamsNonStreaming(
-                tool_choice={'type': 'tool', 'name': tools[0]['name']},
-                **transformed_request
-            )
-        )
-        return request
+        # Return a plain dict suitable for JSONL or API submission
+        return {
+            "custom_id": custom_id,
+            "params": {
+                **transformed_request,
+                "tool_choice": {'type': 'tool', 'name': tools[0]['name']}
+            }
+        }
     
     def create_batch_file(self, request_data_list: List[Dict[str, Any]], 
                          custom_ids: List[str], provider: str = "openai") -> str:
@@ -108,6 +105,7 @@ class BatchProcessor:
                 if provider == "openai":
                     batch_request = self.to_openai_batch_request(request_data, custom_id)
                 elif provider == "anthropic":
+                    # Only write serializable dicts for Anthropic
                     batch_request = self.to_anthropic_batch_request(request_data, custom_id)
                 else:
                     raise ValueError(f"Unsupported provider: {provider}")
@@ -152,7 +150,7 @@ class BatchProcessor:
         
         client = anthropic.Anthropic(api_key=self.annotator.api_key)
         
-        # Submit the batch
+        # Submit the batch (requests should be dicts with 'custom_id' and 'params')
         message_batch = client.messages.batches.create(requests=requests)
         
         logger.info(f"Submitted Anthropic batch: {message_batch.id}")
@@ -271,16 +269,37 @@ class BatchProcessor:
         results = []
         
         for line in file_content.text.strip().split('\n'):
-            if line:
+            if not line:
+                continue
+            try:
                 result = json.loads(line)
-                if result.get('response') and result['response'].get('body'):
-                    # Parse the tool call result
-                    response_body = result['response']['body']
-                    if response_body.get('choices') and response_body['choices'][0].get('message', {}).get('tool_calls'):
-                        tool_call = response_body['choices'][0]['message']['tool_calls'][0]
-                        tool_call_args = json.loads(tool_call['function']['arguments'])
-                        parsed_result = self.annotator._parse_result(tool_call_args)
-                        results.append(parsed_result)
+            except Exception:
+                logger.error("Malformed JSONL line in OpenAI results: %s", line[:200])
+                continue
+
+            if not result.get('response'):
+                # Possibly an error line; surface custom_id for debugging
+                cid = result.get('custom_id')
+                logger.warning("OpenAI batch line missing response (custom_id=%s): %s", cid, list(result.keys()))
+                continue
+
+            response_body = result['response'].get('body') or {}
+            choices = response_body.get('choices') or []
+            if not choices:
+                logger.warning("OpenAI response has no choices (custom_id=%s)", result.get('custom_id'))
+                continue
+            message = choices[0].get('message', {})
+            tool_calls = message.get('tool_calls') or []
+            if not tool_calls:
+                logger.warning("No tool_calls in OpenAI response (custom_id=%s)", result.get('custom_id'))
+                continue
+            try:
+                tool_call = tool_calls[0]
+                tool_call_args = json.loads(tool_call['function']['arguments'])
+                parsed_result = self.annotator._parse_result(tool_call_args)
+                results.append(parsed_result)
+            except Exception as e:
+                logger.error("Failed to parse tool call (custom_id=%s): %s", result.get('custom_id'), e)
         
         return results
     
@@ -300,53 +319,103 @@ class BatchProcessor:
             raise ValueError(f"Batch {batch_id} has no results URL")
         
         # Download results
-        response = requests.get(batch.results_url)
-        response.raise_for_status()
-        
+        # Prefer client-managed retrieval; fall back to signed URL with requests
         results = []
-        for line in response.text.strip().split('\n'):
-            if line:
+        text = None
+        try:
+            file = client.messages.batches.results(batch_id)
+            text = getattr(file, 'text', None)
+        except Exception:
+            pass
+        if text is None:
+            import requests
+            response = requests.get(batch.results_url, headers={"Authorization": f"Bearer {self.annotator.api_key}"})
+            response.raise_for_status()
+            text = response.text
+
+        for line in (text or '').strip().split('\n'):
+            if not line:
+                continue
+            try:
                 result = json.loads(line)
-                if result.get('result') and result['result'].get('type') == 'succeeded':
-                    # Parse the tool call result
-                    message = result['result']['message']
-                    if message.get('content') and message['content'][0].get('type') == 'tool_use':
-                        tool_use = message['content'][0]
-                        tool_call_args = tool_use['input']
-                        parsed_result = self.annotator._parse_result(tool_call_args)
-                        results.append(parsed_result)
+            except Exception:
+                logger.error("Malformed JSONL line in Anthropic results: %s", line[:200])
+                continue
+            res = result.get('result') or {}
+            if res.get('type') != 'succeeded':
+                logger.warning("Anthropic line not succeeded (custom_id=%s): %s", result.get('custom_id'), res.get('type'))
+                continue
+            message = res.get('message') or {}
+            content = message.get('content') or []
+            if not content:
+                logger.warning("Anthropic message has no content (custom_id=%s)", result.get('custom_id'))
+                continue
+            first = content[0]
+            if first.get('type') != 'tool_use':
+                logger.warning("Anthropic first content is not tool_use (custom_id=%s)", result.get('custom_id'))
+                continue
+            try:
+                tool_call_args = first.get('input', {})
+                parsed_result = self.annotator._parse_result(tool_call_args)
+                results.append(parsed_result)
+            except Exception as e:
+                logger.error("Failed parsing Anthropic tool_use (custom_id=%s): %s", result.get('custom_id'), e)
         
         return results
     
     def process_async(self, request_data_list: List[Dict[str, Any]], 
                      max_workers: int = 5) -> List[T]:
-        """Process requests asynchronously with rate limiting."""
+        """Process requests asynchronously with global rate limiting and retries."""
         try:
             import litellm
             from concurrent.futures import ThreadPoolExecutor, as_completed
-            from threading import Semaphore
-            import time
+            from threading import Semaphore, Lock
+            import time as _time
+            import random
         except ImportError:
             raise ImportError("Required packages not available for async processing")
         
-        results = []
+        results: List[T] = []
         semaphore = Semaphore(max_workers)
+        rate_lock = Lock()
+        interval = 60.0 / max(1, self.config.rate_limit_rpm)
+        next_allowed_time = {'t': 0.0}
+        
+        def acquire_rate_slot():
+            with rate_lock:
+                now = _time.monotonic()
+                wait = max(0.0, next_allowed_time['t'] - now)
+                if wait > 0:
+                    _time.sleep(wait)
+                next_allowed_time['t'] = max(now, next_allowed_time['t']) + interval
         
         def process_single_request(request_data):
             with semaphore:
-                try:
-                    # Rate limiting
-                    time.sleep(60.0 / self.config.rate_limit_rpm)
-                    
-                    litellm_request = self.annotator.get_request(request_data)
-                    response = litellm.completion(**litellm_request)
-                    
-                    tool_call = response.choices[0].message.tool_calls[0]
-                    tool_call_args = json.loads(tool_call.function.arguments)
-                    return self.annotator._parse_result(tool_call_args)
-                except Exception as e:
-                    logger.error(f"Error processing request: {e}")
-                    return None
+                retries = 0
+                while True:
+                    try:
+                        acquire_rate_slot()
+                        litellm_request = self.annotator.get_request(request_data)
+                        response = litellm.completion(**litellm_request)
+
+                        choices = getattr(response, 'choices', None)
+                        if not choices:
+                            raise ValueError("No choices in response")
+                        message = choices[0].message
+                        tool_calls = getattr(message, 'tool_calls', None)
+                        if not tool_calls:
+                            raise ValueError("No tool_calls in response")
+                        tool_call = tool_calls[0]
+                        tool_call_args = json.loads(tool_call.function.arguments)
+                        return self.annotator._parse_result(tool_call_args)
+                    except Exception as e:
+                        retries += 1
+                        if retries > getattr(self.config, 'max_retries', 0):
+                            logger.error(f"Error processing request after retries: {e}")
+                            return None
+                        backoff = min(10.0, (2 ** (retries - 1)) + random.uniform(0, 0.5))
+                        logger.warning(f"Retrying request (attempt {retries}) after error: {e}. Backoff {backoff:.2f}s")
+                        _time.sleep(backoff)
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_request = {
