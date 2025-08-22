@@ -26,7 +26,8 @@ def example_solvability_analysis():
     # Create annotator
     annotator = create_solvability_annotator(
         model="gpt-4o-mini",
-        api_key="your-api-key"
+        api_key="your-api-key",
+        request_timeout=20.0,
     )
     
     # Analyze the issue
@@ -60,8 +61,9 @@ def example_trajectory_analysis():
     
     # Create annotator
     annotator = create_trajectory_annotator(
-        model="gpt-4o-mini", 
-        api_key="your-api-key"
+        model="gpt-4o-mini",
+        api_key="your-api-key",
+        request_timeout=20.0,
     )
     
     # Analyze the conversation
