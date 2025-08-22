@@ -2,7 +2,7 @@
 Critic Rubrics - Unified rubrics system for LLM-based feature extraction and conversation analysis.
 """
 
-from .core import Prediction
+from .types import Prediction
 from .rubrics.solvability import SolvabilityRubrics
 from .rubrics.trajectory import TrajectoryRubrics
 from .annotators.base import BaseAnnotator

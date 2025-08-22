@@ -2,6 +2,7 @@
 Trajectory rubrics for conversation analysis.
 """
 
+from typing import ClassVar
 from pydantic import BaseModel, Field
 from ..types import Prediction
 
@@ -170,252 +171,81 @@ Quick disambiguation (common splits)
 """
 
 
-# Tool definition for conversations WITH follow-up messages
-ANNOTATION_TOOL = {
-  "type": "function",
-  "function": {
-    "name": "annotate_conversation",
-    "description": "Annotate agent conversation that has user follow-up messages during or after agent work.",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "follow_up_timing": {
-          "type": "string",
-          "enum": ["mid_conversation", "post_completion", "no_follow_up"],
-          "description": "WHEN did the user follow up? • mid_conversation: agent hadn’t clearly finished/handed off • post_completion: agent signaled completion/hand-off • no_follow_up: no user message after the last agent message."
-        },
-        "follow_up_timing_rationale": {
-          "type": "string",
-          "description": "Evidence for timing with a brief quote (≤25 words). Examples: “Agent: ‘Here’s the final script.’ ” → post_completion; “Agent: ‘I’ll start tests…’ and user replied” → mid_conversation."
-        },
+# NOTE: Static ANNOTATION_TOOL removed. Use TrajectoryUserFollowupRubrics.get_tool_schema().
 
-        # /* USER FOLLOW-UP PATTERNS */
-        "clarification_or_restatement_detected": {
-          "type": "boolean",
-          "description": "User clarifies/restates or corrects interpretation. Examples: “That’s not what I meant…”, “I meant X, not Y.”, “Let me clarify…”"
-        },
-        "clarification_or_restatement_rationale": {
-          "type": "string",
-          "description": "Quote the user and explain briefly."
-        },
 
-        "correction_detected": {
-          "type": "boolean",
-          "description": "Agent broadly understood the intention but executed it incorrectly (technique/parameters/details). Examples: “Use DESC not ASC.”, “Right table, wrong WHERE clause.”, “Same approach, wrong sort key.”"
-        },
-        "correction_rationale": {
-          "type": "string",
-          "description": "Quote and explain in one or two sentences."
-        },
+class BaseRubrics(BaseModel):
+    """
+    Base class for rubric definitions.
+    Subclasses declare Prediction fields with Field(description=...) and can
+    override extra_tool_properties() to add non-Prediction parameters.
 
-        "direction_change_detected": {
-          "type": "boolean",
-          "description": "User adds new constraints/intent not previously specified; scope/goal evolves. Examples: “Also handle time zones.”, “We actually need streaming, not batch.”, “Support Windows too.”"
-        },
-        "direction_change_rationale": {
-          "type": "string",
-          "description": "Quote and explain briefly."
-        },
-        
-        "vcs_update_requests_detected": {
-          "type": "boolean",
-          "description": "User instructs forward-moving VCS updates: commit, create branch, push, open/merge PR, tag. (Revert/reset/remove → use removal_or_reversion_request.)"
-        },
-        "vcs_update_requests_rationale": {
-          "type": "string",
-          "description": "Quote and explain briefly."
-        },
+    get_tool_schema() builds an OpenAI function/tool schema automatically:
+    - For each Prediction field `foo`, creates `foo_detected` (boolean) and
+      `foo_rationale` (string) properties. Descriptions are derived from the
+      field's description and Field(json_schema_extra=...).
+    - Merges additional properties from extra_tool_properties().
+    - Marks all properties as required by default unless REQUIRED_ALL=False.
+    """
 
-        "progress_or_scope_concern_detected": {
-          "type": "boolean",
-          "description": "User flags slowness, overcomplexity, or scope bloat. Examples: “This is taking too long.”, “Try a simpler approach.”, “This goes beyond what I asked.”"
-        },
-        "progress_or_scope_concern_rationale": {
-          "type": "string",
-          "description": "Quote and explain briefly."
-        },
+    TOOL_NAME: ClassVar[str] = "annotate_conversation"
+    TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation."
+    REQUIRED_ALL: ClassVar[bool] = True
 
-        "frustration_or_complaint_detected": {
-          "type": "boolean",
-          "description": "User expresses dissatisfaction or irritation. Examples: “This is wrong.”, “You’re not listening.”, excessive caps or punctuation (“!!!”, “???”)."
-        },
-        "frustration_or_complaint_rationale": {
-          "type": "string",
-          "description": "Quote and explain briefly."
-        },
+    @classmethod
+    def extra_tool_properties(cls) -> dict:
+        return {}
 
-        "removal_or_reversion_request_detected": {
-          "type": "boolean",
-          "description": "User asks to remove or revert code/files/changes. Examples: “Delete the new script.”, “Undo that migration.”, “Remove these outputs.”, ”git revert”."
-        },
-        "removal_or_reversion_request_rationale": {
-          "type": "string",
-          "description": "Quote and explain briefly."
-        },
+    @classmethod
+    def get_tool_schema(cls) -> dict:
+        props: dict = {}
 
-        "other_user_issue_detected": {
-          "type": "boolean",
-          "description": "Any other notable user concern not covered above."
-        },
-        "other_user_issue_rationale": {
-          "type": "string",
-          "description": "Quote and explain briefly."
-        },
+        # Build properties for each Prediction field: <name>_detected + <name>_rationale
+        for name, field in cls.model_fields.items():  # pydantic v2
+            ann = field.annotation
+            is_prediction = False
+            try:
+                is_prediction = isinstance(ann, type) and issubclass(ann, Prediction)
+            except Exception:
+                is_prediction = False
+            if not is_prediction:
+                continue
 
-        # /* AGENT BEHAVIORAL ISSUES */
-        "misunderstood_intention_detected": {
-          "type": "boolean",
-          "description": "Agent misunderstood the user’s goal/intent. Examples: User asked for a summary; agent produced a rewrite; user wanted high-level bullets; agent delivered full code."
-        },
-        "misunderstood_intention_rationale": {
-          "type": "string",
-          "description": "Quote evidence concisely (≤25 words) and explain in a sentence."
-        },
+            base_desc = (field.description or name.replace("_", " ")).strip()
+            extra = getattr(field, "json_schema_extra", None) or {}
+            det_desc = extra.get("detected_description") or base_desc
+            rat_desc = extra.get("rationale_description") or f"Brief evidence/quote for {name}."
 
-        "did_not_follow_instruction_detected": {
-          "type": "boolean",
-          "description": "Agent ignored or failed to comply with explicit instructions/system constraints. Examples: User: “Do NOT push to main.” Agent pushes; System says not to create a PR unless the user asks and the user didn’t ask; agent creates a PR; user asked for bullet points only, agent gives long prose."
-        },
-        "did_not_follow_instruction_rationale": {
-          "type": "string",
-          "description": "Quote the instruction and the noncompliant action."
-        },
+            props[f"{name}_detected"] = {
+                "type": "boolean",
+                "description": det_desc,
+            }
+            props[f"{name}_rationale"] = {
+                "type": "string",
+                "description": rat_desc,
+            }
 
-        "insufficient_analysis_detected": {
-          "type": "boolean",
-          "description": "Didn’t explore existing materials (prior code/docs/examples) before acting. Examples: User points to an existing function/file that is relevant or already solves it; agent reinvents it."
-        },
-        "insufficient_analysis_rationale": {
-          "type": "string",
-          "description": "Explain with evidence (e.g., user points to existing file)."
-        },
+        # Merge subclass-defined extras (e.g., enums, timing)
+        extras = cls.extra_tool_properties() or {}
+        props.update(extras)
 
-        "insufficient_clarification_detected": {
-          "type": "boolean",
-          "description": "Failed to ask necessary questions before acting when requirements were ambiguous. Examples: Agent proceeds despite unclear acceptance criteria (locales, time zones, error thresholds) then is corrected later."
-        },
-        "insufficient_clarification_rationale": {
-          "type": "string",
-          "description": "Quote the ambiguous instruction and note the missing questions."
-        },
+        required = sorted(props.keys()) if getattr(cls, "REQUIRED_ALL", True) else []
 
-        "improper_tool_use_or_setup_detected": {
-          "type": "boolean",
-          "description": "Misused tools/commands or used inappropriate tools; missing/incorrect dependencies/setup. Examples: wrong command syntax; using an inappropriate tool; import errors; wrong API URL; malformed auth header."
-        },
-        "improper_tool_use_or_setup_rationale": {
-          "type": "string",
-          "description": "Cite commands/errors and explain briefly."
-        },
-
-        "loop_behavior_detected": {
-          "type": "boolean",
-          "description": "Repeats the same failed action 3+ times without strategy change."
-        },
-        "loop_behavior_rationale": {
-          "type": "string",
-          "description": "Describe the repetitions and counts (e.g., ‘same curl 3× → 401 each time’)."
-        },
-
-        "insufficient_testing_detected": {
-          "type": "boolean",
-          "description": "Skipped reasonable verification/tests for non-trivial or risky changes (trivial edits may be acceptable). Examples: No run/validation for a new parser; no check that a migration applies cleanly; no sanity check of output."
-        },
-        "insufficient_testing_rationale": {
-          "type": "string",
-          "description": "Describe what should have been tested and why."
-        },
-
-        "insufficient_debugging_detected": {
-          "type": "boolean",
-          "description": "Did not investigate or reduce failing behavior when needed to make progress. Examples: Ignores stack trace; no isolation of failure; proceeds while errors persist."
-        },
-        "insufficient_debugging_rationale": {
-          "type": "string",
-          "description": "Quote the error and explain the missing debugging steps."
-        },
-
-        "incomplete_implementation_detected": {
-          "type": "boolean",
-          "description": "Delivered unfinished or non-functioning work. Examples: TODO/FIXME left; stub methods; code that cannot run."
-        },
-        "incomplete_implementation_rationale": {
-          "type": "string",
-          "description": "Point to the incomplete parts and impact."
-        },
-
-        "file_management_errors_detected": {
-          "type": "boolean",
-          "description": "Wrong paths, overwrites, misplaced/extra (unnecessary) files. Examples: writes into wrong directory; overwrites config; creates unwanted artifacts."
-        },
-        "file_management_errors_rationale": {
-          "type": "string",
-          "description": "Describe exact paths/actions and consequences."
-        },
-
-        "scope_creep_detected": {
-          "type": "boolean",
-          "description": "Implemented unrequested features without approval. Examples: adds a dashboard or endpoint not asked for."
-        },
-        "scope_creep_rationale": {
-          "type": "string",
-          "description": "Explain how it exceeds the ask."
-        },
-
-        "risky_actions_or_permission_detected": {
-          "type": "boolean",
-          "description": "Risky steps without the user's explicit consent. Examples: git push to main; deleting existing files in a repo (deleting files created by the agent itself is fine); altering credentials."
-        },
-        "risky_actions_or_permission_rationale": {
-          "type": "string",
-          "description": "Describe the risky action and lack of consent."
-        },
-
-        "other_agent_issue_detected": {
-          "type": "boolean",
-          "description": "Any other agent-side problem not covered above."
-        },
-        "other_agent_issue_rationale": {
-          "type": "string",
-          "description": "Describe and cite brief evidence."
-        },
-
-        # /* INFRASTRUCTURE (EXTERNAL vs AGENT-CAUSED) */
-        "infrastructure_external_issue_detected": {
-          "type": "boolean",
-          "description": "Environment/platform limits outside agent control. Examples: provider outage; disk full on a managed runner; missing enterprise API key; network failure not caused by agent."
-        },
-        "infrastructure_external_issue_rationale": {
-          "type": "string",
-          "description": "Quote the error/status and explain briefly."
-        },
-
-        "infrastructure_agent_caused_issue_detected": {
-          "type": "boolean",
-          "description": "Infrastructure faults introduced by the agent’s prior actions. Examples: agent leaves server on port 8000 → later start on 8000 fails; agent fills disk with logs → later writes fail."
-        },
-        "infrastructure_agent_caused_issue_rationale": {
-          "type": "string",
-          "description": "Describe the agent-caused condition and the resulting failure."
-        },
-
-        # /* TASK TYPE */
-        "task_type": {
-          "type": "string",
-          "enum": ["coding", "debugging", "research", "file_management", "configuration", "documentation", "analysis", "other"],
-          "description": "Primary task the user asked for. Examples: implement a script → coding; fix a stack trace → debugging; find sources → research; move/rename files → file_management; change settings/keys → configuration; write a README → documentation; assess a design → analysis; otherwise → other."
+        return {
+            "type": "function",
+            "function": {
+                "name": getattr(cls, "TOOL_NAME", "annotate_conversation"),
+                "description": getattr(cls, "TOOL_DESCRIPTION", "Annotate conversation."),
+                "parameters": {
+                    "type": "object",
+                    "properties": props,
+                    "required": required,
+                },
+            },
         }
-      },
-      "required": []
-    }
-  }
-}
-
-# Make EVERYTHING required
-ANNOTATION_TOOL['function']['parameters']['required'] = sorted(ANNOTATION_TOOL['function']['parameters']['properties'].keys())
 
 
-class TrajectoryUserFollowupRubrics(BaseModel):
+class TrajectoryUserFollowupRubrics(BaseRubrics):
     """
     Comprehensive trajectory analysis features based on Xingyao rubrics.
     Includes user follow-up patterns, agent behavioral issues, and infrastructure problems.
@@ -495,3 +325,43 @@ class TrajectoryUserFollowupRubrics(BaseModel):
     infrastructure_agent_caused_issue: Prediction = Field(
         description="Infrastructure faults introduced by agent's prior actions"
     )
+
+    # Tool metadata overrides
+    TOOL_NAME: ClassVar[str] = "annotate_conversation"
+    TOOL_DESCRIPTION: ClassVar[str] = (
+        "Annotate agent conversation that has user follow-up messages during or after agent work."
+    )
+    REQUIRED_ALL: ClassVar[bool] = True
+
+    @classmethod
+    def extra_tool_properties(cls) -> dict:
+        return {
+            "follow_up_timing": {
+                "type": "string",
+                "enum": ["mid_conversation", "post_completion", "no_follow_up"],
+                "description": "WHEN did the user follow up? • mid_conversation: agent hadn’t clearly finished/handed off • post_completion: agent signaled completion/hand-off • no_follow_up: no user message after the last agent message.",
+            },
+            "follow_up_timing_rationale": {
+                "type": "string",
+                "description": "Evidence for timing with a brief quote (≤25 words). Examples: “Agent: ‘Here’s the final script.’ ” → post_completion; “Agent: ‘I’ll start tests…’ and user replied” → mid_conversation.",
+            },
+            "task_type": {
+                "type": "string",
+                "enum": [
+                    "coding",
+                    "debugging",
+                    "research",
+                    "file_management",
+                    "configuration",
+                    "documentation",
+                    "analysis",
+                    "other",
+                ],
+                "description": "Primary task the user asked for. Examples: implement a script → coding; fix a stack trace → debugging; find sources → research; move/rename files → file_management; change settings/keys → configuration; write a README → documentation; assess a design → analysis; otherwise → other.",
+            },
+        }
+
+
+
+
+
