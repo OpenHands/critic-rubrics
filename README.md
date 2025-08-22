@@ -24,7 +24,11 @@ pip install pydantic litellm
 
 Optional providers (for batch APIs / clients):
 ```bash
+# If installing from a published package:
 pip install 'critic-rubrics[providers]'
+
+# If installing locally from this repo:
+pip install -e '.[providers]'
 ```
 
 ## Quick Start
