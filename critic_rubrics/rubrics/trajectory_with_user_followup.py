@@ -171,6 +171,12 @@ Quick disambiguation (common splits)
 """
 
 
+# Default factory for Prediction fields
+
+def _default_prediction() -> Prediction:
+    return Prediction(detected=False, rationale="")
+
+
 # NOTE: Static ANNOTATION_TOOL removed. Use TrajectoryUserFollowupRubrics.get_tool_schema().
 
 
@@ -190,7 +196,7 @@ class BaseRubrics(BaseModel):
 
     TOOL_NAME: ClassVar[str] = "annotate_conversation"
     TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation."
-    REQUIRED_ALL: ClassVar[bool] = True
+    REQUIRED_ALL: ClassVar[bool] = False  # default; subclasses may override
 
     @classmethod
     def extra_tool_properties(cls) -> dict:
@@ -331,7 +337,7 @@ class TrajectoryUserFollowupRubrics(BaseRubrics):
     TOOL_DESCRIPTION: ClassVar[str] = (
         "Annotate agent conversation that has user follow-up messages during or after agent work."
     )
-    REQUIRED_ALL: ClassVar[bool] = True
+    REQUIRED_ALL: ClassVar[bool] = False
 
     @classmethod
     def extra_tool_properties(cls) -> dict:
