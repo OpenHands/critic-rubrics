@@ -20,14 +20,16 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class BatchConfig:
-    """Configuration for batch processing."""
-    provider: str = "openai"  # openai, anthropic, litellm
-    batch_size: int = 1000
+    """Configuration for batch processing.
+
+    Notes:
+    - Temperature and max_tokens are sourced from the annotator to avoid drift.
+    - batch_size was removed to avoid confusion; file creation writes all requests.
+    """
+    provider: str = "openai"  # openai, anthropic
     max_retries: int = 3
     rate_limit_rpm: int = 60
     output_folder: str = "./batch_results"
-    max_tokens: int = 8192
-    temperature: float = 0.1
 
     request_timeout: Optional[float] = None
 
@@ -55,8 +57,8 @@ class BatchProcessor:
                 "messages": litellm_request["messages"],
                 "tools": litellm_request["tools"],
                 "tool_choice": litellm_request["tool_choice"],
-                "temperature": getattr(self.annotator, "temperature", self.config.temperature),
-                "max_tokens": getattr(self.annotator, "max_tokens", self.config.max_tokens)
+                "temperature": self.annotator.temperature,
+                "max_tokens": self.annotator.max_tokens
             }
         }
     
@@ -76,7 +78,7 @@ class BatchProcessor:
             messages=litellm_request["messages"],
             optional_params={
                 'tools': tools,
-                'max_tokens': getattr(self.annotator, "max_tokens", self.config.max_tokens),
+                'max_tokens': self.annotator.max_tokens,
             },
             litellm_params={},
             headers={},
