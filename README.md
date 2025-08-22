@@ -44,6 +44,9 @@ result = annotator.annotate(issue_text)
 print(f"Clear problem statement: {result.has_clear_problem_statement.detected}")
 ```
 
+
+Note: Annotators provide the full tool schema internally. You do not need to (and should not) pass custom tool schemas; this avoids schema drift.
+
 ### Trajectory Analysis
 
 ```python
