@@ -7,7 +7,7 @@ name = "critic-rubrics"
 version = "0.1.0"
 description = "Unified rubrics system for LLM-based feature extraction and conversation analysis"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{name = "All-Hands-AI"}]
 license = {text = "MIT"}
 dependencies = [
