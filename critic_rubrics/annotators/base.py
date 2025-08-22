@@ -63,12 +63,16 @@ class BaseAnnotator(ABC, Generic[T]):
             expected_tool = self._get_tool_schema()
             try:
                 expected_props = set(expected_tool['function']['parameters']['properties'].keys())
-                provided_props = set(provided_tool['function']['parameters']['properties'].keys()) if provided_tool else set()
-                if not provided_props or expected_props != provided_props:
-                    logger.warning("Provided tool schema does not match annotator schema; using internal schema.")
-                    tools = [expected_tool]
+                if provided_tool:
+                    provided_props = set(provided_tool['function']['parameters']['properties'].keys())
+                    if expected_props != provided_props:
+                        logger.warning("Provided tool schema does not match annotator schema; using internal schema.")
+                        tools = [expected_tool]
+                    else:
+                        tools = [provided_tool]
                 else:
-                    tools = [provided_tool]
+                    # No tool provided; quietly use internal schema
+                    tools = [expected_tool]
             except Exception:
                 logger.warning("Invalid provided tool schema; falling back to internal schema.")
                 tools = [expected_tool]

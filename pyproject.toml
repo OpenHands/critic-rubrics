@@ -23,7 +23,11 @@ providers = [
 ]
 
 [tool.setuptools]
-packages = ["critic_rubrics"]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["critic_rubrics*"]
 
 [tool.setuptools.package-data]
 critic_rubrics = ["py.typed"]
