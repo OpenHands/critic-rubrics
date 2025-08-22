@@ -93,7 +93,6 @@ def example_batch_processing():
     annotator = create_trajectory_annotator(request_timeout=20.0)
     config = BatchConfig(
         provider="openai",
-        batch_size=100,
         output_folder="./batch_results"
     )
     batch_processor = create_batch_processor(annotator, config)
@@ -169,16 +168,15 @@ def example_provider_comparison():
     print(f"- URL: {openai_request['url']}")
     print(f"- Body keys: {list(openai_request['body'].keys())}")
     
-    # Anthropic format (would require anthropic package)
+    # Anthropic format
     print("\nAnthropic batch format:")
     try:
-        # This would work if anthropic package is installed
-        # anthropic_request = batch_processor.to_anthropic_batch_request(request_data, custom_id)
-        # print(f"- Structure: {type(anthropic_request)}")
-        print("- Would create Anthropic Request object with custom_id and params")
-        print("- Uses litellm's AnthropicConfig for transformation")
+        anthropic_request = batch_processor.to_anthropic_batch_request(request_data, custom_id)
+        print(f"- Structure: dict with keys {list(anthropic_request.keys())}")
+        print(f"- Has params keys: {list(anthropic_request['params'].keys())[:5]}…")
+        print("- Uses litellm's AnthropicConfig for transformation; serializable JSON")
     except Exception as e:
-        print(f"- Requires anthropic package: {e}")
+        print(f"- Could not build Anthropic request: {e}")
     
     print("✅ Provider format comparison complete")
 
