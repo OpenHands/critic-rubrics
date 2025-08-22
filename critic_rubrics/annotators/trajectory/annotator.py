@@ -135,6 +135,7 @@ QUALITY STANDARDS
     def _parse_result(self, tool_call_args: Dict[str, Any]) -> TrajectoryRubrics:
         """Parse LLM result with flat detected/rationale keys into TrajectoryRubrics."""
         predictions: Dict[str, Prediction] = {}
+        pred_field_names = []
         for name, field in TrajectoryRubrics.model_fields.items():
             ann = field.annotation
             try:
@@ -143,6 +144,7 @@ QUALITY STANDARDS
                 is_pred = False
             if not is_pred:
                 continue
+            pred_field_names.append(name)
             det_key = f"{name}_detected"
             rat_key = f"{name}_rationale"
             if det_key in tool_call_args or rat_key in tool_call_args:
@@ -150,4 +152,8 @@ QUALITY STANDARDS
                     detected=bool(tool_call_args.get(det_key, False)),
                     rationale=str(tool_call_args.get(rat_key, "")),
                 )
+        # Fill defaults for any missing Prediction fields
+        for name in pred_field_names:
+            if name not in predictions:
+                predictions[name] = Prediction(detected=False, rationale="")
         return TrajectoryRubrics(**predictions)
