@@ -70,25 +70,6 @@ def example_structured_format():
                 'content': 'User: Fix my code\nAgent: What code?\nUser: You should know!\nAgent: I need more information.'
             }
         ],
-        'tools_for_annotator': {
-            'type': 'function',
-            'function': {
-                'name': 'analyze_conversation_trajectory',
-                'description': 'Analyze conversation trajectory for issues',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'insufficient_clarification': {
-                            'type': 'object',
-                            'properties': {
-                                'detected': {'type': 'boolean'},
-                                'rationale': {'type': 'string'}
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
     
     # Get the request format
@@ -125,14 +106,6 @@ def example_batch_processing():
                 {'role': 'assistant', 'content': 'What do you need help with?'},
                 {'role': 'user', 'content': 'You should know!'}
             ],
-            'tools_for_annotator': {
-                'type': 'function',
-                'function': {
-                    'name': 'analyze_conversation_trajectory',
-                    'description': 'Analyze conversation',
-                    'parameters': {'type': 'object', 'properties': {}}
-                }
-            }
         },
         {
             'messages_for_annotator': [
@@ -140,14 +113,6 @@ def example_batch_processing():
                 {'role': 'assistant', 'content': 'I need to see your code'},
                 {'role': 'user', 'content': 'Here it is: print(x)'}
             ],
-            'tools_for_annotator': {
-                'type': 'function',
-                'function': {
-                    'name': 'analyze_conversation_trajectory',
-                    'description': 'Analyze conversation',
-                    'parameters': {'type': 'object', 'properties': {}}
-                }
-            }
         }
     ]
     
@@ -192,14 +157,6 @@ def example_provider_comparison():
         'messages_for_annotator': [
             {'role': 'user', 'content': 'My app crashes when I click the button'}
         ],
-        'tools_for_annotator': {
-            'type': 'function',
-            'function': {
-                'name': 'analyze_issue_solvability',
-                'description': 'Analyze issue solvability',
-                'parameters': {'type': 'object', 'properties': {}}
-            }
-        }
     }
     
     custom_id = "issue_123"
