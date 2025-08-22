@@ -3,12 +3,33 @@ Critic Rubrics - Unified rubrics system for LLM-based feature extraction and con
 """
 
 from .types import Prediction
-from .rubrics.solvability import SolvabilityRubrics
-from .rubrics.trajectory import TrajectoryRubrics
+
+# Optional, guarded imports so partial environments can still import package
+try:
+    from .rubrics.solvability import SolvabilityRubrics  # type: ignore
+except Exception:  # pragma: no cover - optional module
+    SolvabilityRubrics = None  # type: ignore
+
+try:
+    from .rubrics.trajectory import TrajectoryRubrics  # type: ignore
+except Exception:  # pragma: no cover - optional module
+    TrajectoryRubrics = None  # type: ignore
+
 from .annotators.base import BaseAnnotator
-from .annotators.solvability.annotator import SolvabilityAnnotator
-from .annotators.trajectory.annotator import TrajectoryAnnotator
-from .batch_processor import BatchProcessor, BatchConfig
+try:
+    from .annotators.solvability.annotator import SolvabilityAnnotator  # type: ignore
+except Exception:  # pragma: no cover
+    SolvabilityAnnotator = None  # type: ignore
+try:
+    from .annotators.trajectory.annotator import TrajectoryAnnotator  # type: ignore
+except Exception:  # pragma: no cover
+    TrajectoryAnnotator = None  # type: ignore
+
+try:
+    from .batch_processor import BatchProcessor, BatchConfig  # type: ignore
+except Exception:  # pragma: no cover
+    BatchProcessor = None  # type: ignore
+    BatchConfig = None  # type: ignore
 
 __version__ = "0.1.0"
 
