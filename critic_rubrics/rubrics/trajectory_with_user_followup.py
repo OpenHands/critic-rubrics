@@ -41,11 +41,11 @@ USER FOLLOW-UP PATTERNS
 
 • direction_change: User adds new constraints/intent or seeks information / asks questions that redirect the plan or scope.
   - Examples: “Also handle time zones.”, “We need streaming, not batch.”, “Before coding, list the open PRs,” “Which repo should we use?”
-  - **Note:** VCS update instructions (commit/push/PR) are **not** direction_change; tag as vcs_update_requests.
+  - Note: VCS update instructions (commit/push/PR) are not direction_change; tag as vcs_update_requests.
 
 • vcs_update_requests: User instructs forward-moving VCS tasks.
   - Examples: “git commit”, “create a branch”, “push to origin”, “open/merge a PR”, “tag the release”.
-  - **Exclusive:** This does **not** count as direction_change; choose one by default.
+  - Exclusive: This does not count as direction_change; choose one by default.
   - Reverts/resets/removals belong to removal_or_reversion_request.
 
 • progress_or_scope_concern: User flags slowness, overcomplexity, or scope bloat.
@@ -61,8 +61,8 @@ MUTUAL-EXCLUSIVITY RULE (Core Follow-up Set)
 • By default, choose only one among: clarification_or_restatement, correction, direction_change, vcs_update_requests.
 • Co-tag only when the user message clearly contains distinct parts that independently satisfy multiple categories.
 • Tie-break order and guidance:
-  1) direction_change — user adds/changes goals/constraints OR asks for information that redirects the plan/approach. **Do not include VCS update instructions** (commit/push/PR); those are vcs_update_requests.
-  2) vcs_update_requests — user instructs forward-moving VCS tasks. This **does not count as direction_change**.
+  1) direction_change — user adds/changes goals/constraints OR asks for information that redirects the plan/approach. Do not include VCS update instructions (commit/push/PR); those are vcs_update_requests.
+  2) vcs_update_requests — user instructs forward-moving VCS tasks. This does not count as direction_change.
   3) clarification_or_restatement — user clarifies intent/meaning without changing goals/constraints.
   4) correction — goal stands; user fixes execution details (params/technique/scope).
 
@@ -74,7 +74,7 @@ AGENT BEHAVIORAL ISSUES
   - Examples: User: “Do NOT push to main.” Agent pushes to main; System says not to create pull request unless user asks for it and user didn't ask for it, agent creates pull request; user asked for bullet points only, agent gives long prose.
 
 • insufficient_analysis: Didn’t explore existing materials sufficiently (prior code/docs/examples) before acting.
-  - Examples: User points to an existing function/file that is relavant OR already solves it; agent reinvents it.
+  - Examples: User points to an existing function/file that is relevant OR already solves it; agent reinvents it.
 
 • insufficient_clarification: Failed to ask necessary questions before acting when requirements were ambiguous.
   - Examples: Agent proceeds despite unclear acceptance criteria (e.g., locales, time zones, error thresholds) then is corrected later.
@@ -120,7 +120,6 @@ QUALITY STANDARDS
 • Conservative Defaults: When uncertain, mark FALSE and briefly explain why.
 • No speculation: Tie every flagged issue to observable behavior or quoted text.
 """
-
 
 
 ANNOTATION_INSTRUCTION_MESSAGE = """=== END OF CONVERSATION TO ANALYZE ===
@@ -256,80 +255,103 @@ class TrajectoryUserFollowupRubrics(BaseRubrics):
     Comprehensive trajectory analysis features based on Xingyao rubrics.
     Includes user follow-up patterns, agent behavioral issues, and infrastructure problems.
     """
-    
+
     # USER FOLLOW-UP PATTERNS
     clarification_or_restatement: Prediction = Field(
-        description="User clarifies/restates or corrects interpretation"
+        description="User clarifies/restates or corrects interpretation",
+        default_factory=_default_prediction,
     )
     correction: Prediction = Field(
-        description="Agent understood intention but executed incorrectly"
+        description="Agent understood intention but executed incorrectly",
+        default_factory=_default_prediction,
     )
     direction_change: Prediction = Field(
-        description="User adds new constraints/intent or redirects plan/scope"
+        description="User adds new constraints/intent or redirects plan/scope",
+        default_factory=_default_prediction,
     )
     vcs_update_requests: Prediction = Field(
-        description="User instructs forward-moving VCS tasks (commit/push/PR)"
+        description="User instructs forward-moving VCS tasks (commit/push/PR)",
+        default_factory=_default_prediction,
     )
     progress_or_scope_concern: Prediction = Field(
-        description="User flags slowness, overcomplexity, or scope bloat"
+        description="User flags slowness, overcomplexity, or scope bloat",
+        default_factory=_default_prediction,
     )
     frustration_or_complaint: Prediction = Field(
-        description="User shows dissatisfaction or irritation"
+        description="User shows dissatisfaction or irritation",
+        default_factory=_default_prediction,
     )
     removal_or_reversion_request: Prediction = Field(
-        description="User asks to remove code/files or revert changes"
+        description="User asks to remove code/files or revert changes",
+        default_factory=_default_prediction,
     )
     other_user_issue: Prediction = Field(
-        description="Any other notable user concern not covered above"
+        description="Any other notable user concern not covered above",
+        default_factory=_default_prediction,
     )
-    
+
     # AGENT BEHAVIORAL ISSUES
     misunderstood_intention: Prediction = Field(
-        description="Agent misunderstood the user's goal/intent"
+        description="Agent misunderstood the user's goal/intent",
+        default_factory=_default_prediction,
     )
     did_not_follow_instruction: Prediction = Field(
-        description="Agent ignored or failed to comply with explicit instructions"
+        description="Agent ignored or failed to comply with explicit instructions",
+        default_factory=_default_prediction,
     )
     insufficient_analysis: Prediction = Field(
-        description="Didn't explore existing materials sufficiently before acting"
+        description="Didn't explore existing materials sufficiently before acting",
+        default_factory=_default_prediction,
     )
     insufficient_clarification: Prediction = Field(
-        description="Failed to ask necessary questions when requirements were ambiguous"
+        description="Failed to ask necessary questions when requirements were ambiguous",
+        default_factory=_default_prediction,
     )
     improper_tool_use_or_setup: Prediction = Field(
-        description="Misused tools/commands or had missing/incorrect dependencies"
+        description="Misused tools/commands or had missing/incorrect dependencies",
+        default_factory=_default_prediction,
     )
     loop_behavior: Prediction = Field(
-        description="Repeats the same failed action 3+ times without strategy change"
+        description="Repeats the same failed action 3+ times without strategy change",
+        default_factory=_default_prediction,
     )
     insufficient_testing: Prediction = Field(
-        description="Skipped reasonable verification/tests for non-trivial changes"
+        description="Skipped reasonable verification/tests for non-trivial changes",
+        default_factory=_default_prediction,
     )
     insufficient_debugging: Prediction = Field(
-        description="Did not investigate or reduce failing behavior when needed"
+        description="Did not investigate or reduce failing behavior when needed",
+        default_factory=_default_prediction,
     )
     incomplete_implementation: Prediction = Field(
-        description="Delivered unfinished or non-functioning work"
+        description="Delivered unfinished or non-functioning work",
+        default_factory=_default_prediction,
     )
     file_management_errors: Prediction = Field(
-        description="Wrong paths, overwrites, misplaced/extra files"
+        description="Wrong paths, overwrites, misplaced/extra files",
+        default_factory=_default_prediction,
     )
     scope_creep: Prediction = Field(
-        description="Implemented unrequested features without approval"
+        description="Implemented unrequested features without approval",
+        default_factory=_default_prediction,
     )
     risky_actions_or_permission: Prediction = Field(
-        description="Risky steps without user's explicit consent"
+        description="Risky steps without user's explicit consent",
+        default_factory=_default_prediction,
     )
     other_agent_issue: Prediction = Field(
-        description="Any other agent-side problem not covered above"
+        description="Any other agent-side problem not covered above",
+        default_factory=_default_prediction,
     )
-    
+
     # INFRASTRUCTURE ISSUES
     infrastructure_external_issue: Prediction = Field(
-        description="Environment/platform limits outside agent control"
+        description="Environment/platform limits outside agent control",
+        default_factory=_default_prediction,
     )
     infrastructure_agent_caused_issue: Prediction = Field(
-        description="Infrastructure faults introduced by agent's prior actions"
+        description="Infrastructure faults introduced by agent's prior actions",
+        default_factory=_default_prediction,
     )
 
     # Tool metadata overrides
@@ -366,8 +388,3 @@ class TrajectoryUserFollowupRubrics(BaseRubrics):
                 "description": "Primary task the user asked for. Examples: implement a script → coding; fix a stack trace → debugging; find sources → research; move/rename files → file_management; change settings/keys → configuration; write a README → documentation; assess a design → analysis; otherwise → other.",
             },
         }
-
-
-
-
-
