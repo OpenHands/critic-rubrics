@@ -10,18 +10,21 @@ This package consolidates rubric systems from multiple All-Hands-AI research pro
 
 ## Installation
 
-This repository is installable as a Python package for local development.
+This repository is installable as a Python package.
 
 Option A — install via editable mode (recommended for contributors):
 ```bash
 pip install -e .
 ```
 
-Dependencies are declared in pyproject.toml and will be installed automatically.
-
-If you prefer manual installation, install the minimal runtime deps first:
+Minimal runtime deps:
 ```bash
 pip install pydantic litellm
+```
+
+Optional providers (for batch APIs / clients):
+```bash
+pip install 'critic-rubrics[providers]'
 ```
 
 ## Quick Start
@@ -34,6 +37,7 @@ from critic_rubrics import create_solvability_annotator
 annotator = create_solvability_annotator(
     model="gpt-4o-mini",
     # Pass api_key or rely on environment variables supported by litellm
+    request_timeout=20.0,  # seconds
 )
 
 result = annotator.annotate(issue_text)
@@ -47,13 +51,14 @@ from critic_rubrics import create_trajectory_annotator
 
 annotator = create_trajectory_annotator(
     model="gpt-4o-mini",
+    request_timeout=20.0,
 )
 
 result = annotator.annotate(conversation)
 print(f"Quality score: {result.get_quality_score():.2f}")
 ```
 
-## API Keys
+## API Keys & Timeouts
 
 litellm supports provider-specific environment variables. For example, to use OpenAI:
 
@@ -73,6 +78,10 @@ critic_rubrics/
 │   ├── solvability.py         # SolvabilityRubrics (12 features)
 │   └── trajectory.py          # TrajectoryRubrics (23 features)
 └── annotators/                # LLM annotator implementations
+
+Request timeouts: factories accept `request_timeout` which is propagated to litellm as `timeout`.
+This helps avoid long-hanging requests and improves robustness in batch/async usage.
+
     ├── base.py               # BaseAnnotator
     ├── solvability/
     │   └── annotator.py
