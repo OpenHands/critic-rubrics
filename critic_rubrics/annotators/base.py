@@ -5,17 +5,17 @@ Minimal base annotator class.
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, TypeVar, Generic, Union
 import json
+import litellm
 import logging
 
 T = TypeVar('T')
 logger = logging.getLogger(__name__)
 
 
-
 class BaseAnnotator(ABC, Generic[T]):
     """Minimal base class for LLM-based rubric annotators."""
     
-    def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None, *, temperature: float = 0.1, max_tokens: int = 2048, request_timeout: Optional[float] = None):
+    def __init__(self, model: str = "openai/o3-2025-04-16", api_key: Optional[str] = None, *, temperature: float = 0.0, max_tokens: int = 8192, request_timeout: Optional[float] = None):
         self.model = model
         self.api_key = api_key
         self.temperature = temperature
@@ -99,8 +99,6 @@ class BaseAnnotator(ABC, Generic[T]):
                          OR a simple string content for backward compatibility
         """
         try:
-            import litellm
-            
             request = self.get_request(request_data)
             response = litellm.completion(**request)
             

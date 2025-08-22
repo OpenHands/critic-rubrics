@@ -12,26 +12,12 @@ from pathlib import Path
 from datetime import datetime
 
 from .annotators.base import BaseAnnotator
+from .types import BatchConfig
 
 T = TypeVar('T')
 
 logger = logging.getLogger(__name__)
 
-
-@dataclass
-class BatchConfig:
-    """Configuration for batch processing.
-
-    Notes:
-    - Temperature and max_tokens are sourced from the annotator to avoid drift.
-    - batch_size was removed to avoid confusion; file creation writes all requests.
-    """
-    provider: str = "openai"  # openai, anthropic
-    max_retries: int = 3
-    rate_limit_rpm: int = 60
-    output_folder: str = "./batch_results"
-
-    request_timeout: Optional[float] = None
 
 
 class BatchProcessor:
