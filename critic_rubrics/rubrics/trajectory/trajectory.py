@@ -147,7 +147,7 @@ class AnnotateConversationRubric(BaseRubrics):
     TOOL_NAME: ClassVar[str] = "annotate_conversation"
     TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation."
     SYSTEM_MESSAGE: ClassVar[str] = ANNOTATION_SYSTEM_MESSAGE
-    USER_MESSAGE: ClassVar[str] | None = ANNOTATION_INSTRUCTION_MESSAGE
+    USER_MESSAGE: ClassVar[str | None] = ANNOTATION_INSTRUCTION_MESSAGE
 
 
     # --- Generic Questions ---

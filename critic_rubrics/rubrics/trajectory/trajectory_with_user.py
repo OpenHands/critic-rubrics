@@ -187,7 +187,7 @@ class AnnotateConversationWithUserRubric(AnnotateConversationRubric):
 
     TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation that has user follow-up messages during or after agent work."
     SYSTEM_MESSAGE: ClassVar[str] = ANNOTATION_SYSTEM_MESSAGE
-    USER_MESSAGE: ClassVar[str] | None = ANNOTATION_INSTRUCTION_MESSAGE
+    USER_MESSAGE: ClassVar[str | None] = ANNOTATION_INSTRUCTION_MESSAGE
 
     # Specific fields for user follow-up patterns
     follow_up_timing: FollowUpTimingPrediction = Field(
