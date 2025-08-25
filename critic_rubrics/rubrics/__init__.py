@@ -2,9 +2,9 @@
 Rubric dataclasses for different analysis types.
 """
 
-from .trajectory_with_user_followup import BaseRubrics, TrajectoryUserFollowupRubrics
+from .base import BaseRubrics, Prediction
 
 __all__ = [
     "BaseRubrics",
-    "TrajectoryUserFollowupRubrics",
+    "Prediction",
 ]

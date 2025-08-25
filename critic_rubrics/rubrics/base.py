@@ -1,33 +1,17 @@
+# base_rubrics.py
 from typing import Any, ClassVar
-from pydantic import BaseModel, Field
 import logging
+from pydantic import BaseModel
+
+from critic_rubrics.prediction import BasePrediction
 
 logger = logging.getLogger(__name__)
-
-class Prediction(BaseModel):
-    """Represents a prediction with detection result and rationale."""
-    detected: bool = Field(
-        description="Set TRUE only with specific evidence."
-    )
-    rationale: str = Field(
-        description="Brief evidence/quote (≤25 words) explaining why."
-    )
-
 
 class BaseRubrics(BaseModel):
     TOOL_NAME: ClassVar[str] = "annotate_conversation"
     TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation."
-    REQUIRED_ALL: ClassVar[bool] = Field(
-        default=True,
-        description="If TRUE, all <feature>_detected and <feature>_rationale fields are required.",
-    )
-    # One canonical description for ALL <feature>_rationale fields
-    RATIONALE_DESCRIPTION: ClassVar[str] = (
-        "Quote evidence concisely (≤25 words) and explain in a sentence."
-    )
-
-    def extra_tool_properties(self) -> dict[str, Any]:
-        return {}
+    REQUIRED_ALL: ClassVar[bool] = True
+    RATIONALE_DESCRIPTION: ClassVar[str] = "Brief evidence/quote (≤25 words) explaining why."
 
     @property
     def tool_choice(self) -> dict[str, Any]:
@@ -39,16 +23,25 @@ class BaseRubrics(BaseModel):
 
         for name, field in self.model_fields.items():  # pydantic v2
             ann = field.annotation
-            is_prediction = isinstance(ann, type) and issubclass(ann, Prediction)
-            if not is_prediction:
-                logger.warning(
-                    f"Field '{name}' is not of type 'Prediction'. Skipping."
-                )
+            if not isinstance(ann, type) or not issubclass(ann, BasePrediction):
+                logger.warning("Skipping non-Prediction field: %s", name)
                 continue
-            props[f"{name}_detected"] = {"type": "boolean", "description": field.description}
-            props[f"{name}_rationale"] = {"type": "string", "description": self.RATIONALE_DESCRIPTION}
 
-        props.update(self.extra_tool_properties() or {})
+            # use the rubric field's description for the *_detected or *_label text
+            assert field.description is not None, f"Field {name} must have a description"
+            field_desc = field.description.strip()
+
+            try:
+                props.update(
+                    ann.to_tool_properties(
+                        field_name=name,
+                        field_description=field_desc,
+                        rationale_description=self.RATIONALE_DESCRIPTION,
+                    )
+                )
+            except Exception as e:
+                logger.exception("Failed building tool properties for %s: %s", name, e)
+
         required = sorted(props.keys()) if self.REQUIRED_ALL else []
 
         return {
@@ -56,10 +49,6 @@ class BaseRubrics(BaseModel):
             "function": {
                 "name": self.TOOL_NAME,
                 "description": self.TOOL_DESCRIPTION,
-                "parameters": {
-                    "type": "object",
-                    "properties": props,
-                    "required": required,
-                },
+                "parameters": {"type": "object", "properties": props, "required": required},
             },
         }
