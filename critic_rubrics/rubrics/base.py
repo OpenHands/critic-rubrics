@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 class BaseRubrics(BaseModel, ABC):
     TOOL_NAME: ClassVar[str]
     TOOL_DESCRIPTION: ClassVar[str]
+    SYSTEM_MESSAGE: ClassVar[str]
+    USER_MESSAGE: ClassVar[str] | None = None # Optional
     REQUIRED_ALL: ClassVar[bool] = True
     RATIONALE_DESCRIPTION: ClassVar[str] = "Brief evidence/quote (≤25 words) explaining why."
 
@@ -21,18 +23,18 @@ class BaseRubrics(BaseModel, ABC):
     # LLM tool schema generation
     # ============================================================
 
-    @property
-    def tool_choice(self) -> ChatCompletionToolChoiceObjectParam:
+    @classmethod
+    def tool_choice(cls) -> ChatCompletionToolChoiceObjectParam:
         return ChatCompletionToolChoiceObjectParam(
             type="function",
-            function={"name": self.TOOL_NAME},
+            function={"name": cls.TOOL_NAME},
         )
 
-    @property
-    def tools(self) -> list[ChatCompletionToolParam]:
+    @classmethod
+    def tools(cls) -> list[ChatCompletionToolParam]:
         props: dict[str, Any] = {}
 
-        for name, field in self.model_fields.items():  # pydantic v2
+        for name, field in cls.model_fields.items():  # pydantic v2
             ann = field.annotation
             if not isinstance(ann, type) or not issubclass(ann, BasePrediction):
                 logger.warning("Skipping non-Prediction field: %s", name)
@@ -47,20 +49,20 @@ class BaseRubrics(BaseModel, ABC):
                     ann.to_tool_properties(
                         field_name=name,
                         field_description=field_desc,
-                        rationale_description=self.RATIONALE_DESCRIPTION,
+                        rationale_description=cls.RATIONALE_DESCRIPTION,
                     )
                 )
             except Exception as e:
                 logger.exception("Failed building tool properties for %s: %s", name, e)
 
-        required = sorted(props.keys()) if self.REQUIRED_ALL else []
+        required = sorted(props.keys()) if cls.REQUIRED_ALL else []
 
         return [
             {
                 "type": "function",
                 "function": {
-                    "name": self.TOOL_NAME,
-                    "description": self.TOOL_DESCRIPTION,
+                    "name": cls.TOOL_NAME,
+                    "description": cls.TOOL_DESCRIPTION,
                     "parameters": {"type": "object", "properties": props, "required": required},
                 },
             }
@@ -69,17 +71,10 @@ class BaseRubrics(BaseModel, ABC):
     # ============================================================
     # Annotation message generation for LLM
     # ============================================================
-    @property
-    def system_message(self) -> str:
-        raise NotImplementedError("Subclasses must implement system_message")
 
-    @property
-    def user_message(self) -> str | None:
-        """Optional user message that sends to LLM for analysis along with other context."""
-        return None
-
+    @classmethod
     def create_annotation_request(
-        self,
+        cls,
         inputs: dict[str, Any],
         model: str = "openai/o3-2025-04-16",
     ) -> ChatCompletionRequest | None:

@@ -186,6 +186,8 @@ class AnnotateConversationWithUserRubric(AnnotateConversationRubric):
     """
 
     TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation that has user follow-up messages during or after agent work."
+    SYSTEM_MESSAGE: ClassVar[str] = ANNOTATION_SYSTEM_MESSAGE
+    USER_MESSAGE: ClassVar[str] | None = ANNOTATION_INSTRUCTION_MESSAGE
 
     # Specific fields for user follow-up patterns
     follow_up_timing: FollowUpTimingPrediction = Field(
@@ -224,11 +226,3 @@ class AnnotateConversationWithUserRubric(AnnotateConversationRubric):
     )
     other_user_issue: BinaryPrediction = Field(description="Any other notable user concern not covered above.")
 
-    @property
-    def system_message(self) -> str:
-        return ANNOTATION_SYSTEM_MESSAGE
-
-    @property
-    def user_message(self) -> str | None:
-        """Optional user message that sends to LLM for analysis along with other context."""
-        return ANNOTATION_INSTRUCTION_MESSAGE
