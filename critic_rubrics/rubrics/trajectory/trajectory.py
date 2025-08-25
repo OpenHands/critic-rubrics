@@ -146,6 +146,9 @@ Quick disambiguation (common splits)
 class AnnotateConversationRubric(BaseRubrics):
     TOOL_NAME: ClassVar[str] = "annotate_conversation"
     TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation."
+    SYSTEM_MESSAGE: ClassVar[str] = ANNOTATION_SYSTEM_MESSAGE
+    USER_MESSAGE: ClassVar[str | None] = ANNOTATION_INSTRUCTION_MESSAGE
+
 
     # --- Generic Questions ---
     user_goal_summary: TextPrediction = Field(description="One sentence describing what the user is trying to accomplish.")
@@ -228,25 +231,17 @@ class AnnotateConversationRubric(BaseRubrics):
         )
     )
 
-    @property
-    def system_message(self) -> str:
-        return ANNOTATION_SYSTEM_MESSAGE
-
-    @property
-    def user_message(self) -> str | None:
-        """Optional user message that sends to LLM for analysis along with other context."""
-        return ANNOTATION_INSTRUCTION_MESSAGE
-
+    @classmethod
     def create_annotation_request(
-        self,
+        cls,
         inputs: dict[str, Any],
         model: str = "openai/o3-2025-04-16",
     ) -> ChatCompletionRequest | None:
-        assert self.user_message is not None, "user_message must be defined for this rubrics"
+        assert cls.USER_MESSAGE is not None, "user_message must be defined for this rubrics"
         messages = transform_for_annotator(
             inputs,
-            system_message=self.system_message,
-            annotation_instruction_message=self.user_message,
+            system_message=cls.SYSTEM_MESSAGE,
+            annotation_instruction_message=cls.USER_MESSAGE,
         )
         if messages is None:
             return None
@@ -254,6 +249,6 @@ class AnnotateConversationRubric(BaseRubrics):
             model=model,
             messages=messages,
             temperature=0.0,
-            tools=self.tools,
-            tool_choice=self.tool_choice,
+            tools=cls.tools(),
+            tool_choice=cls.tool_choice(),
         )
