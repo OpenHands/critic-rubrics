@@ -198,7 +198,11 @@ def transform_for_annotator(
         content_blocks: OpenAIMessageContent
         # unify content into list-of-blocks so we can append
         if isinstance(content, str):
-            content_blocks = [ChatCompletionTextObject(type="text", text=content)]
+            content_blocks = [
+                ChatCompletionTextObject(
+                    type="text", text=content
+                )
+            ]
         elif isinstance(content, list):
             content_blocks = content
         else:
@@ -251,7 +255,9 @@ def transform_for_annotator(
 
             assert isinstance(content_blocks, list), "Tool content must be a list of blocks."
             assert len(content_blocks) > 0, "Tool content cannot be empty."
-            content_blocks = [ChatCompletionTextObject(type="text", text=prefix)] + content_blocks
+            content_blocks = [
+                ChatCompletionTextObject(type="text", text=prefix)
+            ] + content_blocks
             transformed.append(ChatCompletionUserMessage(role="user", content=content_blocks))
             continue  # we've already appended, move to next message
 
