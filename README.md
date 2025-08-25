@@ -1,107 +1,120 @@
 # Critic Rubrics
 
-A unified rubrics system for LLM-based feature extraction and conversation analysis.
+Building blocks for LLM “rubric” tool-schemas and typed predictions.
 
-## Overview
+This repo currently provides:
+- Typed prediction models (binary, text, single-label classification)
+- A BaseRubrics class that turns Pydantic fields into a Litellm/OpenAI tool schema
 
-This package consolidates rubric systems from multiple All-Hands-AI research projects:
-- **Calvin Featurizer** (solvability analysis)
-- **Xingyao Rubrics** (trajectory annotation)
+What it does NOT provide yet:
+- Predefined rubrics (e.g., solvability/trajectory)
+- Annotator helpers/factories
 
-## Installation
+Some legacy tests reference trajectory-style rubrics for schema compatibility, but the concrete classes are not shipped yet.
 
-This repository is installable as a Python package.
+## Install
 
-Option A — install via editable mode (recommended for contributors):
+Python 3.12+ is required.
+
+- From source (editable):
 ```bash
 pip install -e .
 ```
+This installs runtime deps defined in pyproject.toml:
+- pydantic (v2)
+- litellm
 
-Minimal runtime deps:
+For development:
 ```bash
-pip install pydantic litellm
+uv sync --group dev
 ```
+This sets up ruff, pyright, pytest, and pre-commit.
 
-Optional providers (for batch APIs / clients):
-```bash
-# If installing from a published package:
-pip install 'critic-rubrics[providers]'
-
-# If installing locally from this repo:
-pip install -e '.[providers]'
-```
-
-## Quick Start
-
-### Solvability Analysis
+## Quick start: define your own rubric
 
 ```python
-from critic_rubrics import create_solvability_annotator
+from typing import Literal
+from pydantic import Field
+from critic_rubrics import BaseRubrics, BinaryPrediction, ClassificationPrediction, TextPrediction
 
-annotator = create_solvability_annotator(
-    model="gpt-4o-mini",
-    # Pass api_key or rely on environment variables supported by litellm
-    request_timeout=20.0,  # seconds
-)
+class SimpleConversationRubric(BaseRubrics):
+    TOOL_NAME = "annotate_conversation"
+    TOOL_DESCRIPTION = "Annotate an agent conversation after the work is done."
 
-result = annotator.annotate(issue_text)
-print(f"Clear problem statement: {result.has_clear_problem_statement.detected}")
+    misunderstood_intention: BinaryPrediction = Field(
+        description="Agent misunderstood the user's goal/intent."
+    )
+
+    outcome: ClassificationPrediction[Literal["pass", "fail"]] = Field(
+        description="High-level outcome classification."
+    )
+
+    summary: TextPrediction = Field(
+        description="Short summary of the session."
+    )
+
+r = SimpleConversationRubric()
+# Tool choice and tool schema for use with litellm/openai-compatible chat APIs
+print(r.tool_choice)
+print(r.tools)
 ```
 
+You are responsible for constructing messages and parsing tool outputs. BaseRubrics focuses on generating a consistent tool schema from typed fields.
 
-Note: Annotators provide the full tool schema internally. You do not need to (and should not) pass custom tool schemas; this avoids schema drift.
+## How it works
 
-### Trajectory Analysis
+- Each Pydantic field of a rubric must be a subclass of BasePrediction. The provided ones are:
+  - BinaryPrediction: exposes `<name>_detected: bool` and `<name>_rationale: str`
+  - TextPrediction: exposes `<name>_text: str`
+  - ClassificationPrediction[Literal[...]]: exposes `<name>: str` (+ optional enum) and `<name>_rationale: str`
+- BaseRubrics.tools flattens all fields into a single function tool with required properties by default (REQUIRED_ALL=True).
+- You must implement system_message (and optionally user_message) in your rubric subclass. create_annotation_request is provided as an abstract hook if you want to standardize message formatting.
+
+## Minimal example with litellm
 
 ```python
-from critic_rubrics import create_trajectory_annotator
+from litellm import completion
 
-annotator = create_trajectory_annotator(
-    model="gpt-4o-mini",
-    request_timeout=20.0,
+messages = [
+    {"role": "system", "content": "You are a careful annotator."},
+    {"role": "user", "content": "<paste conversation here>"},
+]
+
+rubric = SimpleConversationRubric()
+resp = completion(
+    model="openai/o4-mini",  # any litellm-supported provider
+    messages=messages,
+    tools=rubric.tools,
+    tool_choice=rubric.tool_choice,
 )
 
-result = annotator.annotate(conversation)
-print(f"Quality score: {result.get_quality_score():.2f}")
+# Parse resp.choices[0].message.tool_calls[0].function.arguments (JSON)
+# back into your own result object if desired.
 ```
 
-## API Keys & Timeouts
-
-litellm supports provider-specific environment variables. For example, to use OpenAI:
-
-```bash
-export OPENAI_API_KEY="sk-..."
-```
-
-You can also pass `api_key` to the annotator factories directly, but environment
-variables keep secrets out of code.
-
-## Structure
+## Project layout (current)
 
 ```
 critic_rubrics/
-├── core.py                    # Core Prediction dataclass
-├── rubrics/                   # Rubric definitions
-│   ├── solvability.py         # SolvabilityRubrics (12 features)
-│   └── trajectory.py          # TrajectoryRubrics (23 features)
-└── annotators/                # LLM annotator implementations
-    ├── base.py               # BaseAnnotator
-    ├── solvability/
-    │   └── annotator.py
-    └── trajectory/
-        └── annotator.py
+├── __init__.py
+├── prediction.py
+└── rubrics/
+    ├── __init__.py  # exports BaseRubrics; references trajectory types that are not yet implemented
+    └── base.py      # BaseRubrics implementation
 ```
 
-Request timeouts: factories accept `request_timeout` which is propagated to litellm as `timeout`. This helps avoid long-hanging requests and improves robustness in batch/async usage.
+Note: tests include legacy-compat checks for trajectory rubrics that aren’t present in the package yet.
 
-## Key Features
+## Contributing
 
-- **Structured Predictions**: All rubric features use `Prediction(detected: bool, rationale: str)`
-- **Minimal Dependencies**: Only requires `pydantic` and `litellm`
-- **Simple API**: Easy-to-use factory functions for common use cases
-- **Extensible**: Clean base classes for custom rubrics
+- Dev environment: `uv sync --group dev`
+- Run formatting/lint/type-check via pre-commit:
+  - `uv run pre-commit run --all-files`
+- Run tests:
+  - `uv run pytest -vv` 
 
-## Dependencies
+## Roadmap
 
-- `pydantic>=2.0.0`
-- `litellm` (for LLM calls)
+- Ship concrete solvability/trajectory rubrics built on BaseRubrics
+- Provide parsing helpers to convert tool-call JSON back into typed prediction results
+- Optional annotator utilities for common providers
