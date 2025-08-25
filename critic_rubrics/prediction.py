@@ -1,4 +1,3 @@
-# predictions.py
 from typing import Any, Generic, Literal, TypeVar, get_args, get_origin
 
 from pydantic import BaseModel, Field
@@ -81,6 +80,6 @@ class ClassificationPrediction(BasePrediction, Generic[L]):
             label_schema["enum"] = labels
 
         return {
-            f"{field_name}_label": label_schema,
+            f"{field_name}": label_schema,
             f"{field_name}_rationale": {"type": "string", "description": rationale_description},
         }

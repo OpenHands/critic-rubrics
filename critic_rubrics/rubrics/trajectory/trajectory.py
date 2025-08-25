@@ -1,7 +1,6 @@
-# annotate_conversation_rubric.py
+from typing import Any, ClassVar, Literal
 
-from typing import Literal
-
+from litellm import ChatCompletionRequest
 from pydantic import Field
 
 from ...prediction import (
@@ -10,6 +9,7 @@ from ...prediction import (
     TextPrediction,
 )
 from ..base import BaseRubrics
+from .converter import transform_for_annotator
 
 
 SentimentPrediction = ClassificationPrediction[Literal["Positive", "Negative", "Neutral"]]
@@ -33,13 +33,6 @@ DevClusterPrediction = ClassificationPrediction[
         "DevOps & Infrastructure",
         "AI Integration",
         "Code Management",
-    ]
-]
-FollowUpTimingPrediction = ClassificationPrediction[
-    Literal[
-        "mid_conversation",
-        "post_completion",
-        "no_follow_up",
     ]
 ]
 
@@ -151,10 +144,20 @@ Quick disambiguation (common splits)
 
 
 class AnnotateConversationRubric(BaseRubrics):
+    TOOL_NAME: ClassVar[str] = "annotate_conversation"
+    TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation."
+
     # --- Generic Questions ---
     user_goal_summary: TextPrediction = Field(description="One sentence describing what the user is trying to accomplish.")
     overall_sentiment: SentimentPrediction = Field(description="Classify the overall sentiment of the user's messages.")
-    task_type: TaskTypePrediction = Field(description="Classify the type of task into exactly one category.")
+    task_type: TaskTypePrediction = Field(
+        description=(
+            "Classify the type of task into exactly one category."
+            "Choose from: Fix Bugs, Implement Features, Create Programs from Scratch, "
+            "Fix Failing Continuous Integration, Fix Merge Conflicts, Write Documentation, "
+            "Perform Deployments, Perform Data Analysis."
+        )
+    )
     dev_cluster: DevClusterPrediction = Field(
         description=(
             "Choose the best-fitting development cluster: "
@@ -162,14 +165,6 @@ class AnnotateConversationRubric(BaseRubrics):
             "DevOps & Infrastructure (CI/CD, Docker/Kubernetes, cloud, env config), "
             "AI Integration (OpenAI/Anthropic/Gemini APIs, ML systems), "
             "Code Management (Git ops, PRs, docs, bug fixes, features)."
-        )
-    )
-    follow_up_timing: FollowUpTimingPrediction = Field(
-        description=(
-            "WHEN did the user follow up? Choose exactly one: "
-            "mid_conversation: agent hadn't clearly finished; "
-            "post_completion: agent signaled completion/hand-off; "
-            "no_follow_up: no user message after the last agent message."
         )
     )
 
@@ -232,3 +227,33 @@ class AnnotateConversationRubric(BaseRubrics):
             "Infrastructure faults introduced by the agent's prior actions. Examples: agent leaves server on port 8000 → later start on 8000 fails; agent fills disk with logs → later writes fail."
         )
     )
+
+    @property
+    def system_message(self) -> str:
+        return ANNOTATION_SYSTEM_MESSAGE
+
+    @property
+    def user_message(self) -> str | None:
+        """Optional user message that sends to LLM for analysis along with other context."""
+        return ANNOTATION_INSTRUCTION_MESSAGE
+
+    def create_annotation_request(
+        self,
+        inputs: dict[str, Any],
+        model: str = "openai/o3-2025-04-16",
+    ) -> ChatCompletionRequest | None:
+        assert self.user_message is not None, "user_message must be defined for this rubrics"
+        messages = transform_for_annotator(
+            inputs,
+            system_message=self.system_message,
+            annotation_instruction_message=self.user_message,
+        )
+        if messages is None:
+            return None
+        return ChatCompletionRequest(
+            model=model,
+            messages=messages,
+            temperature=0.0,
+            tools=self.tools,
+            tool_choice=self.tool_choice,
+        )
