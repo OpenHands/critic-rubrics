@@ -144,7 +144,6 @@ cython_debug/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-# Generated artifacts
-batch_results/
-*.jsonl
 
+# Data for local development
+/data/
