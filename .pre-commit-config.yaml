@@ -1,0 +1,19 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: Ruff (format + lint)
+        entry: uv
+        args: [run, ruff, check, --fix, --exit-non-zero-on-fix]
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+      - id: pyright
+        name: Type check with Pyright (strict)
+        entry: uv
+        args: [run, pyright]
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
