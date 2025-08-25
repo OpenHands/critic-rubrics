@@ -1,5 +1,6 @@
 # predictions.py
 from typing import Any, Generic, Literal, TypeVar, get_args, get_origin
+
 from pydantic import BaseModel, Field
 
 

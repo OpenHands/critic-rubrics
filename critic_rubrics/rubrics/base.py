@@ -1,9 +1,11 @@
 # base_rubrics.py
-from typing import Any, ClassVar
 import logging
+from typing import Any, ClassVar
+
 from pydantic import BaseModel
 
 from critic_rubrics.prediction import BasePrediction
+
 
 logger = logging.getLogger(__name__)
 
