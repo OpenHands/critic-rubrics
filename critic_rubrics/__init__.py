@@ -1,4 +1,9 @@
-from .prediction import BasePrediction, BinaryPrediction, ClassificationPrediction, TextPrediction
+from .prediction import (
+    BasePrediction,
+    BinaryPrediction,
+    ClassificationPrediction,
+    TextPrediction,
+)
 from .rubrics import BaseRubrics
 
 
