@@ -9,6 +9,7 @@ from critic_rubrics.prediction import BasePrediction
 
 logger = logging.getLogger(__name__)
 
+
 class BaseRubrics(BaseModel):
     TOOL_NAME: ClassVar[str] = "annotate_conversation"
     TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation."
