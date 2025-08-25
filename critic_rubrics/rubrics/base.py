@@ -1,4 +1,3 @@
-# base_rubrics.py
 import logging
 from abc import ABC
 from typing import Any, ClassVar
@@ -56,14 +55,16 @@ class BaseRubrics(BaseModel, ABC):
 
         required = sorted(props.keys()) if self.REQUIRED_ALL else []
 
-        return [{
-            "type": "function",
-            "function": {
-                "name": self.TOOL_NAME,
-                "description": self.TOOL_DESCRIPTION,
-                "parameters": {"type": "object", "properties": props, "required": required},
-            },
-        }]
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": self.TOOL_NAME,
+                    "description": self.TOOL_DESCRIPTION,
+                    "parameters": {"type": "object", "properties": props, "required": required},
+                },
+            }
+        ]
 
     # ============================================================
     # Annotation message generation for LLM

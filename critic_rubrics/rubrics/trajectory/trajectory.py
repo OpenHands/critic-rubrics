@@ -35,13 +35,6 @@ DevClusterPrediction = ClassificationPrediction[
         "Code Management",
     ]
 ]
-FollowUpTimingPrediction = ClassificationPrediction[
-    Literal[
-        "mid_conversation",
-        "post_completion",
-        "no_follow_up",
-    ]
-]
 
 
 # %%
@@ -172,14 +165,6 @@ class AnnotateConversationRubric(BaseRubrics):
             "DevOps & Infrastructure (CI/CD, Docker/Kubernetes, cloud, env config), "
             "AI Integration (OpenAI/Anthropic/Gemini APIs, ML systems), "
             "Code Management (Git ops, PRs, docs, bug fixes, features)."
-        )
-    )
-    follow_up_timing: FollowUpTimingPrediction = Field(
-        description=(
-            "WHEN did the user follow up? Choose exactly one: "
-            "mid_conversation: agent hadn't clearly finished; "
-            "post_completion: agent signaled completion/hand-off; "
-            "no_follow_up: no user message after the last agent message."
         )
     )
 
