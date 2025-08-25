@@ -160,6 +160,9 @@ def test_annotate_conversation_rubric_schema_consistency():
     if additional_params:
         print(f"🔍 Additional parameters in generated schema: {sorted(additional_params)}")
 
+    # Assert all parameters are required
+    assert generated_tool["function"]["parameters"]["required"] == sorted(generated_params.keys()), "Not all parameters are marked as required"
+
 
 if __name__ == "__main__":
     test_annotate_conversation_rubric_schema_consistency()
