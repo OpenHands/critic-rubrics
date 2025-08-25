@@ -1,6 +1,4 @@
 # Critic Rubrics
-[![CI](https://github.com/All-Hands-AI/critic-rubrics/actions/workflows/ci.yml/badge.svg)](https://github.com/All-Hands-AI/critic-rubrics/actions/workflows/ci.yml)
-
 
 A unified rubrics system for LLM-based feature extraction and conversation analysis.
 

@@ -4,38 +4,44 @@ from typing import Literal
 
 from pydantic import Field
 
-from critic_rubrics import (
-    BaseRubrics,
+from ...prediction import (
     BinaryPrediction,
     ClassificationPrediction,
     TextPrediction,
 )
+from ..base import BaseRubrics
 
 
 SentimentPrediction = ClassificationPrediction[Literal["Positive", "Negative", "Neutral"]]
 
-TaskTypePrediction = ClassificationPrediction[Literal[
-    "Fix Bugs",
-    "Implement Features",
-    "Create Programs from Scratch",
-    "Fix Failing Continuous Integration",
-    "Fix Merge Conflicts",
-    "Write Documentation",
-    "Perform Deployments",
-    "Perform Data Analysis",
-]]
+TaskTypePrediction = ClassificationPrediction[
+    Literal[
+        "Fix Bugs",
+        "Implement Features",
+        "Create Programs from Scratch",
+        "Fix Failing Continuous Integration",
+        "Fix Merge Conflicts",
+        "Write Documentation",
+        "Perform Deployments",
+        "Perform Data Analysis",
+    ]
+]
 
-DevClusterPrediction = ClassificationPrediction[Literal[
-    "Web Development",
-    "DevOps & Infrastructure",
-    "AI Integration",
-    "Code Management",
-]]
-FollowUpTimingPrediction = ClassificationPrediction[Literal[
-    "mid_conversation",
-    "post_completion",
-    "no_follow_up",
-]]
+DevClusterPrediction = ClassificationPrediction[
+    Literal[
+        "Web Development",
+        "DevOps & Infrastructure",
+        "AI Integration",
+        "Code Management",
+    ]
+]
+FollowUpTimingPrediction = ClassificationPrediction[
+    Literal[
+        "mid_conversation",
+        "post_completion",
+        "no_follow_up",
+    ]
+]
 
 
 # %%
@@ -114,7 +120,6 @@ QUALITY STANDARDS
 """  # noqa: E501
 
 
-
 ANNOTATION_INSTRUCTION_MESSAGE = """=== END OF CONVERSATION TO ANALYZE ===
 
 Fill the annotate_conversation function.
@@ -147,15 +152,9 @@ Quick disambiguation (common splits)
 
 class AnnotateConversationRubric(BaseRubrics):
     # --- Generic Questions ---
-    user_goal_summary: TextPrediction = Field(
-        description="One sentence describing what the user is trying to accomplish."
-    )
-    overall_sentiment: SentimentPrediction = Field(
-        description="Classify the overall sentiment of the user's messages."
-    )
-    task_type: TaskTypePrediction = Field(
-        description="Classify the type of task into exactly one category."
-    )
+    user_goal_summary: TextPrediction = Field(description="One sentence describing what the user is trying to accomplish.")
+    overall_sentiment: SentimentPrediction = Field(description="Classify the overall sentiment of the user's messages.")
+    task_type: TaskTypePrediction = Field(description="Classify the type of task into exactly one category.")
     dev_cluster: DevClusterPrediction = Field(
         description=(
             "Choose the best-fitting development cluster: "
@@ -186,49 +185,43 @@ class AnnotateConversationRubric(BaseRubrics):
         )
     )
     insufficient_analysis: BinaryPrediction = Field(
-        description=("Didn’t explore existing materials (prior code/docs/examples) before acting. "
-                     "Examples: User points to an existing function/file that is relevant or already solves it; agent reinvents it.")
+        description=(
+            "Didn’t explore existing materials (prior code/docs/examples) before acting. Examples: User points to an existing function/file that is relevant or already solves it; agent reinvents it."
+        )
     )
     insufficient_clarification: BinaryPrediction = Field(
         description=(
-         "Failed to ask necessary questions before acting when requirements were ambiguous. "
-         "Examples: Agent proceeds despite unclear acceptance criteria (locales, time zones, error thresholds) then is corrected later." 
+            "Failed to ask necessary questions before acting when requirements were ambiguous. "
+            "Examples: Agent proceeds despite unclear acceptance criteria (locales, time zones, error thresholds) then is corrected later."
         )
     )
     improper_tool_use_or_setup: BinaryPrediction = Field(
         description=(
-          "Misused tools/commands or used inappropriate tools; missing/incorrect dependencies/setup. "
-          "Examples: wrong command syntax; using an inappropriate tool; import errors; wrong API URL; malformed auth header."  
+            "Misused tools/commands or used inappropriate tools; missing/incorrect dependencies/setup. "
+            "Examples: wrong command syntax; using an inappropriate tool; import errors; wrong API URL; malformed auth header."
         )
     )
-    loop_behavior: BinaryPrediction = Field(
-        description="Repeats the same failed action 3+ times without strategy change."
-    )
+    loop_behavior: BinaryPrediction = Field(description="Repeats the same failed action 3+ times without strategy change.")
     insufficient_testing: BinaryPrediction = Field(
         description=(
             "Skipped reasonable verification/tests for non-trivial or risky changes (trivial edits may be acceptable). "
             "Examples: No run/validation for a new parser; no check that a migration applies cleanly; no sanity check of output."
-            )
+        )
     )
     insufficient_debugging: BinaryPrediction = Field(
         description="Did not investigate or reduce failing behavior when needed to make progress. Examples: Ignores stack trace; no isolation of failure; proceeds while errors persist."
     )
-    incomplete_implementation: BinaryPrediction = Field(
-        description="Delivered unfinished or non-functioning work. Examples: TODO/FIXME left; stub methods; code that cannot run."
-    )
+    incomplete_implementation: BinaryPrediction = Field(description="Delivered unfinished or non-functioning work. Examples: TODO/FIXME left; stub methods; code that cannot run.")
     file_management_errors: BinaryPrediction = Field(
         description="Wrong paths, overwrites, misplaced/extra (unnecessary) files. Examples: writes into wrong directory; overwrites config; creates unwanted artifacts."
     )
-    scope_creep: BinaryPrediction = Field(
-        description="Implemented unrequested features without approval. Examples: adds a dashboard or endpoint not asked for."
-    )
+    scope_creep: BinaryPrediction = Field(description="Implemented unrequested features without approval. Examples: adds a dashboard or endpoint not asked for.")
     risky_actions_or_permission: BinaryPrediction = Field(
-        description=("Risky steps without the user's explicit consent. "
-        "Examples: git push to main; deleting existing files in a repo (deleting files created by the agent itself is fine); altering credentials.")
+        description=(
+            "Risky steps without the user's explicit consent. Examples: git push to main; deleting existing files in a repo (deleting files created by the agent itself is fine); altering credentials."
+        )
     )
-    other_agent_issue: BinaryPrediction = Field(
-        description="Any other agent-side problem not covered above."
-    )
+    other_agent_issue: BinaryPrediction = Field(description="Any other agent-side problem not covered above.")
 
     # --- INFRASTRUCTURE ---
     infrastructure_external_issue: BinaryPrediction = Field(
@@ -236,7 +229,6 @@ class AnnotateConversationRubric(BaseRubrics):
     )
     infrastructure_agent_caused_issue: BinaryPrediction = Field(
         description=(
-            "Infrastructure faults introduced by the agent's prior actions. "
-          "Examples: agent leaves server on port 8000 → later start on 8000 fails; agent fills disk with logs → later writes fail."
+            "Infrastructure faults introduced by the agent's prior actions. Examples: agent leaves server on port 8000 → later start on 8000 fails; agent fills disk with logs → later writes fail."
         )
     )

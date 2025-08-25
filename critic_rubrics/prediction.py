@@ -18,6 +18,7 @@ class BasePrediction(BaseModel):
 
 class BinaryPrediction(BasePrediction):
     """Boolean detection + rationale (flattened as <name>_detected / <name>_rationale)."""
+
     detected: bool = Field(description="Set TRUE only with specific evidence.")
     rationale: str = Field(description="Brief evidence/quote (≤25 words) explaining why.")
 
@@ -36,6 +37,7 @@ class BinaryPrediction(BasePrediction):
 
 class TextPrediction(BasePrediction):
     """Free text output (flattened as <name>_text)."""
+
     text: str
 
     @classmethod
@@ -52,8 +54,10 @@ class TextPrediction(BasePrediction):
 
 L = TypeVar("L", bound=str)
 
+
 class ClassificationPrediction(BasePrediction, Generic[L]):
     """Single-label classification + rationale (flattened as <name>_label / <name>_rationale)."""
+
     label: L = Field(description="Choose one label from the allowed set.")
     rationale: str = Field(description="Brief evidence/quote (≤25 words) explaining why.")
 
