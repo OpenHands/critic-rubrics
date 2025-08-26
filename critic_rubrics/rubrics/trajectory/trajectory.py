@@ -226,7 +226,7 @@ class AnnotateConversationRubric(BaseRubrics):
     )
     infrastructure_agent_caused_issue: BinaryPrediction = Field(
         description=(
-            "Infrastructure faults introduced by the agent's prior actions. Examples: agent leaves server on port 8000,  later start on 8000 fails; agent fills disk with logs,  later writes fail."
+            "Infrastructure faults introduced by the agent's prior actions. Examples: agent leaves server on port 8000 -> later start on 8000 fails; agent fills disk with logs -> later writes fail."
         )
     )
 

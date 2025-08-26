@@ -200,7 +200,7 @@ class AnnotateConversationWithUserRubric(AnnotateConversationRubric):
     )
 
     clarification_or_restatement: BinaryPrediction = Field(
-        description="User clarifies/restates or corrects interpretation. Examples: That’s not what I meant…', 'I meant X, not Y.', 'Let me clarify…'"
+        description="User clarifies/restates or corrects interpretation. Examples: 'That’s not what I meant…', 'I meant X, not Y.', 'Let me clarify…'"
     )
     correction: BinaryPrediction = Field(
         description=(

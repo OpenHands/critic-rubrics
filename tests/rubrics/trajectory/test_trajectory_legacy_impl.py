@@ -31,7 +31,7 @@ NON_USER_PROPERTIES_TO_EXPECT = {
     },
     "improper_tool_use_or_setup_rationale": {"type": "string", "description": "Cite commands/errors and explain briefly."},
     "loop_behavior_detected": {"type": "boolean", "description": "Repeats the same failed action 3+ times without strategy change."},
-    "loop_behavior_rationale": {"type": "string", "description": "Describe the repetitions and counts (e.g., ‘same curl 3× → 401 each time’)."},
+    "loop_behavior_rationale": {"type": "string", "description": "Describe the repetitions and counts (e.g., ‘same curl 3× ,  401 each time’)."},
     "insufficient_testing_detected": {
         "type": "boolean",
         "description": "Skipped reasonable verification/tests for non-trivial or risky changes (trivial edits may be acceptable). Examples: No run/validation for a new parser; no check that a migration applies cleanly; no sanity check of output.",
@@ -66,7 +66,7 @@ NON_USER_PROPERTIES_TO_EXPECT = {
     "infrastructure_external_issue_rationale": {"type": "string", "description": "Quote the error/status and explain briefly."},
     "infrastructure_agent_caused_issue_detected": {
         "type": "boolean",
-        "description": "Infrastructure faults introduced by the agent’s prior actions. Examples: agent leaves server on port 8000 → later start on 8000 fails; agent fills disk with logs → later writes fail.",
+        "description": "Infrastructure faults introduced by the agent’s prior actions. Examples: agent leaves server on port 8000 ,  later start on 8000 fails; agent fills disk with logs ,  later writes fail.",
     },
     "infrastructure_agent_caused_issue_rationale": {"type": "string", "description": "Describe the agent-caused condition and the resulting failure."},
 }
