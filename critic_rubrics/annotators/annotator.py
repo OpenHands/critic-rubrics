@@ -128,56 +128,9 @@ class Annotator:
         return batch
 
     # -----------------------
-    # Single-batch API (back-compat)
-    # -----------------------
-    def batch_annotate(
-        self,
-        requests: Iterable[ChatCompletionRequest],
-        results_dir: str | Path,
-        completion_window: Literal["24h"] = "24h",
-        max_attempts: int = 3,
-    ) -> LiteLLMBatch:
-        """Submit a batch to LiteLLM Proxy and persist identifiers.
-
-        Backward-compatible API: packs all provided requests into a single batch and writes
-        metadata to results_dir/batch.json. Use batch_annotate_chunked for large datasets.
-        """
-        folder_path = Path(results_dir)
-        folder_path.mkdir(parents=True, exist_ok=True)
-        batch_metadata_path = folder_path / "batch.json"
-        if batch_metadata_path.exists():
-            raise FileExistsError(
-                f"Batch metadata file already exists: {batch_metadata_path}. Cannot create a new batch."
-            )
-
-        lines: List[str] = []
-        for i, req in enumerate(requests):
-            body: Dict[str, Any] = dict(req)
-            if "model" not in body:
-                if self.model is None:
-                    raise ValueError("ChatCompletionRequest missing 'model' and no default model set")
-                body["model"] = self.model
-            line = {
-                "custom_id": f"req_{i:08d}",
-                "method": "POST",
-                "url": self.endpoint,
-                "body": body,
-            }
-            lines.append(json.dumps(line, separators=(",", ":")))
-        if not lines:
-            raise ValueError("No requests provided to batch_annotate")
-
-        return self._create_single_batch_from_lines(
-            lines=lines,
-            results_subdir=folder_path,
-            completion_window=completion_window,
-            max_attempts=max_attempts,
-        )
-
-    # -----------------------
     # Multi-batch API with limits
     # -----------------------
-    def batch_annotate_chunked(
+    def batch_annotate(
         self,
         requests: Iterable[ChatCompletionRequest],
         results_dir: str | Path,
