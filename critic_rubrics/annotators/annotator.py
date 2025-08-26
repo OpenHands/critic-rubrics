@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import io
 import json
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, cast
 
 import litellm
-from litellm import ChatCompletionRequest, completion
+from litellm import ChatCompletionRequest, LiteLLMBatch, OpenAIFileObject, completion
 from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 
@@ -69,11 +69,10 @@ class Annotator:
     def batch_annotate(
         self,
         requests: Iterable[ChatCompletionRequest],
-        *,
+        results_dir: str | Path,
         completion_window: Literal["24h"] = "24h",
-        results_dir: Optional[str | Path] = None,
         max_attempts: int = 3,
-    ) -> litellm.LiteLLMBatch:
+    ) -> LiteLLMBatch:
         """Submit a batch to LiteLLM Proxy and persist identifiers.
 
         This does not poll for completion. It uploads the NDJSON, creates the batch,
@@ -81,6 +80,12 @@ class Annotator:
         input_file_id, endpoint, status, created_at, and request_count so that
         download_annotation can fetch outputs later.
         """
+        folder_path = Path(results_dir)
+        folder_path.mkdir(parents=True, exist_ok=True)
+        batch_metadata_path = folder_path / "batch.json"
+        if batch_metadata_path.exists():
+            raise FileExistsError(f"Batch metadata file already exists: {batch_metadata_path}. Cannot create a new batch.")
+
         # Build NDJSON body in-memory to avoid temp files on disk
         lines: List[str] = []
         for i, req in enumerate(requests):
@@ -99,38 +104,32 @@ class Annotator:
         if not lines:
             raise ValueError("No requests provided to batch_annotate")
 
-        ndjson_bytes = ("\n".join(lines)).encode("utf-8")
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            tmp_path = Path(tmpdirname) / "inputs.jsonl"
+            tmp_path.write_text("\n".join(lines), encoding="utf-8")
 
-        # Save inputs if requested
-        folder_path: Optional[Path] = Path(results_dir) if results_dir is not None else None
-        if folder_path is not None:
-            folder_path.mkdir(parents=True, exist_ok=True)
-            try:
-                (folder_path / "inputs.ndjson").write_bytes(ndjson_bytes)
-            except Exception:
-                pass
-
-        # Upload NDJSON as a file for batch input with retry; recreate BytesIO each attempt
-        file_obj: Any | None = None
-        for attempt in self._retrying(max_attempts=max_attempts):
-            with attempt:
-                file_like = io.BytesIO(ndjson_bytes)
-                file_obj = litellm.create_file(file=file_like, purpose="batch", **self._client_kwargs)
-        if file_obj is None:
-            raise RuntimeError("Failed to create file for batch input after retries")
-
-        input_file_id = cast(str, getattr(file_obj, "id"))
+            # Upload JSONL as a file for batch input with retry; reopen file each attempt
+            file_obj: OpenAIFileObject | None = None
+            for attempt in self._retrying(max_attempts=max_attempts):
+                with attempt:
+                    with open(tmp_path, "rb") as file_like:
+                        file_obj = cast(
+                            OpenAIFileObject,
+                            litellm.create_file(file=file_like, purpose="batch", **self._client_kwargs)
+                        )
+            if file_obj is None:
+                raise RuntimeError("Failed to create file for batch input after retries")
 
         # Create the batch with retry
-        batch: Any | None = None
+        batch: LiteLLMBatch | None = None
         for attempt in self._retrying(max_attempts=max_attempts):
             with attempt:
                 batch = cast(
-                    litellm.LiteLLMBatch,
+                    LiteLLMBatch,
                     litellm.create_batch(
                         completion_window=completion_window,
                         endpoint=self.endpoint,
-                        input_file_id=input_file_id,
+                        input_file_id=file_obj.id,
                         **self._client_kwargs,
                     ),
                 )
@@ -138,20 +137,16 @@ class Annotator:
             raise RuntimeError("Failed to create batch after retries")
 
         # Persist batch metadata
-        if folder_path is not None:
-            meta = {
-                "batch_id": cast(str, getattr(batch, "id", None)),
-                "input_file_id": input_file_id,
-                "endpoint": self.endpoint,
-                "status": getattr(batch, "status", None),
-                "created_at": time.time(),
-                "request_count": len(lines),
-            }
-            try:
-                (folder_path / "batch.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-
-            except Exception:
-                pass
+        assert folder_path is not None
+        meta = {
+            "batch_id": cast(str, getattr(batch, "id", None)),
+            "input_file_id": file_obj.id,
+            "endpoint": self.endpoint,
+            "status": batch.status,
+            "created_at": time.time(),
+            "request_count": len(lines),
+        }
+        batch_metadata_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
         return batch
 
