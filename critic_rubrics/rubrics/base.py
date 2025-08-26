@@ -3,6 +3,7 @@ from abc import abstractmethod
 from typing import Any
 
 from litellm import ChatCompletionRequest, ChatCompletionToolChoiceObjectParam, ChatCompletionToolParam
+from litellm.types.utils import ModelResponse
 from pydantic import BaseModel
 
 from critic_rubrics.feature import Feature
@@ -93,3 +94,14 @@ class BaseRubrics(BaseModel, AnnotationMixin):
             ChatCompletionRequest | None: The formatted message for annotation, or None if formatting fails.
         """
         raise NotImplementedError("Subclasses must implement create_annotation_request")
+
+    def response_to_annotation(self, response: ModelResponse) -> list[Feature]:
+        """Convert the LLM response (tool calls) into a structured annotation.
+
+        response: ModelResponse
+            The raw response from the LLM.
+
+        Returns:
+            list[Feature]: The structured annotation.
+        """
+        raise NotImplementedError("Subclasses must implement response_to_annotation")
