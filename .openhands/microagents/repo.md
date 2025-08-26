@@ -128,4 +128,5 @@ When seeing code, make three quick judgments:
   - linting and formatter with `uv ruff`
 - Don't write TOO MUCH test, you should write just enough to cover edge cases.
 - AFTER you edit ONE file, you should run pre-commit hook on that file via `uv run pre-commit run --files [filepath]` to make sure you didn't break it.
+- Note that we are using Python 3.12 and you don't need to import future anntations. Also for typing, i prefer `int | None` over using `Optional` (one fewer thing to import from typing)
 </NOTE>
