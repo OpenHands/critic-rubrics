@@ -113,7 +113,7 @@ NON_USER_PROPERTIES_TO_EXPECT = {
     "infrastructure_external_issue_rationale": {"type": "string", "description": "Quote the error/status and explain briefly."},
     "infrastructure_agent_caused_issue_detected": {
         "type": "boolean",
-        "description": "Infrastructure faults introduced by the agent’s prior actions. Examples: agent leaves server on port 8000 ,  later start on 8000 fails; agent fills disk with logs ,  later writes fail.",
+        "description": "Infrastructure faults introduced by the agent’s prior actions. Examples: agent leaves server on port 8000 -> later start on 8000 fails; agent fills disk with logs -> later writes fail.",
     },
     "infrastructure_agent_caused_issue_rationale": {"type": "string", "description": "Describe the agent-caused condition and the resulting failure."},
 }
