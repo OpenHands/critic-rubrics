@@ -62,7 +62,7 @@ AGENT BEHAVIORAL ISSUES
   - Examples: User asked for a summary and agent produced a rewrite; user wanted high-level bullets but agent delivered full code.
 
 • did_not_follow_instruction: Agent ignored or failed to comply with explicit instructions/system constraints.
-  - Examples: User: “Do NOT push to main.” Agent pushes to main; System says not to create pull request unless user asks for it and user didn't ask for it, agent creates pull request; user asked for bullet points only, agent gives long prose.
+  - Examples: User: 'Do NOT push to main.' Agent pushes to main; System says not to create pull request unless user asks for it and user didn't ask for it, agent creates pull request; user asked for bullet points only, agent gives long prose.
 
 • insufficient_analysis: Didn’t explore existing materials sufficiently (prior code/docs/examples) before acting.
   - Examples: User points to an existing function/file that is relavant OR already solves it; agent reinvents it.
@@ -149,7 +149,6 @@ class AnnotateConversationRubric(BaseRubrics):
     SYSTEM_MESSAGE: ClassVar[str] = ANNOTATION_SYSTEM_MESSAGE
     USER_MESSAGE: ClassVar[str | None] = ANNOTATION_INSTRUCTION_MESSAGE
 
-
     # --- Generic Questions ---
     user_goal_summary: TextPrediction = Field(description="One sentence describing what the user is trying to accomplish.")
     overall_sentiment: SentimentPrediction = Field(description="Classify the overall sentiment of the user's messages.")
@@ -227,7 +226,7 @@ class AnnotateConversationRubric(BaseRubrics):
     )
     infrastructure_agent_caused_issue: BinaryPrediction = Field(
         description=(
-            "Infrastructure faults introduced by the agent's prior actions. Examples: agent leaves server on port 8000 → later start on 8000 fails; agent fills disk with logs → later writes fail."
+            "Infrastructure faults introduced by the agent's prior actions. Examples: agent leaves server on port 8000,  later start on 8000 fails; agent fills disk with logs,  later writes fail."
         )
     )
 

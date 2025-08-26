@@ -15,7 +15,7 @@ class BaseRubrics(BaseModel, ABC):
     TOOL_NAME: ClassVar[str]
     TOOL_DESCRIPTION: ClassVar[str]
     SYSTEM_MESSAGE: ClassVar[str]
-    USER_MESSAGE: ClassVar[str | None] = None # Optional
+    USER_MESSAGE: ClassVar[str | None] = None  # Optional
     REQUIRED_ALL: ClassVar[bool] = True
     RATIONALE_DESCRIPTION: ClassVar[str] = "Brief evidence/quote (≤25 words) explaining why."
 

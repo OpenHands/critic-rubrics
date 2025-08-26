@@ -14,11 +14,11 @@ CONVERSATION STRUCTURE
 ========================
 • Focus on the LAST AGENT MESSAGE and the LAST USER MESSAGE (if any).
 • Determine WHEN the user’s follow-up occurred:
-  - “mid_conversation”: The agent had not clearly finished or handed off.
-  - “post_completion”: The agent signaled completion or handoff (e.g., final answer, “done”, “all set”).
-  - “no_follow_up”: No user reply after the last agent message.
+  - 'mid_conversation': The agent had not clearly finished or handed off.
+  - 'post_completion': The agent signaled completion or handoff (e.g., final answer, 'done', 'all set').
+  - 'no_follow_up': No user reply after the last agent message.
 
-In your timing rationale, note what the agent was doing when the user intervened (quote brief evidence, e.g., “Agent: ‘I’ll start running tests…’ → user replied next.”, or “Agent: ‘Here’s the final script.’ ”).
+In your timing rationale, note what the agent was doing when the user intervened (quote brief evidence, e.g., 'Agent: ‘I’ll start running tests…’ ->  user replied next.', or 'Agent: ‘Here’s the final script.’ ').
 
 ========================
 CONTEXT SOURCES
@@ -34,17 +34,17 @@ Multiple issues can co-occur. For each issue:
 
 USER FOLLOW-UP PATTERNS
 • clarification_or_restatement: User clarifies/restates or corrects interpretation.
-  - Examples: “That’s not what I meant…”, “I meant X, not Y.”, “Let me clarify…”
+  - Examples: 'That’s not what I meant…', 'I meant X, not Y.', 'Let me clarify…'
 
 • correction: Agent basically understood the intention, but executed it incorrectly (fix technique/parameters/details).
-  - Examples: “Use DESC not ASC.”, “Right table, wrong WHERE clause.”, “Same approach, but wrong sort key.”
+  - Examples: 'Use DESC not ASC.', 'Right table, wrong WHERE clause.', 'Same approach, but wrong sort key.'
 
 • direction_change: User adds new constraints/intent or seeks information / asks questions that redirect the plan or scope.
-  - Examples: “Also handle time zones.”, “We need streaming, not batch.”, “Before coding, list the open PRs,” “Which repo should we use?”
+  - Examples: 'Also handle time zones.', 'We need streaming, not batch.', 'Before coding, list the open PRs,' 'Which repo should we use?'
   - **Note:** VCS update instructions (commit/push/PR) are **not** direction_change; tag as vcs_update_requests.
 
 • vcs_update_requests: User instructs forward-moving VCS tasks.
-  - Examples: “git commit”, “create a branch”, “push to origin”, “open/merge a PR”, “tag the release”.
+  - Examples: 'git commit', 'create a branch', 'push to origin', 'open/merge a PR', 'tag the release'.
   - **Exclusive:** This does **not** count as direction_change; choose one by default.
   - Reverts/resets/removals belong to removal_or_reversion_request.
 
@@ -53,7 +53,7 @@ USER FOLLOW-UP PATTERNS
 • frustration_or_complaint: User shows dissatisfaction or irritation.
 
 • removal_or_reversion_request: User asks to remove code/files or revert changes.
-  - Examples: “Delete the new script.”, “Undo that migration.”, “git revert”, “Remove these outputs.”
+  - Examples: 'Delete the new script.', 'Undo that migration.', 'git revert', 'Remove these outputs.'
 
 • other_user_issue: Any other notable user concern not covered above.
 
@@ -71,7 +71,7 @@ AGENT BEHAVIORAL ISSUES
   - Examples: User asked for a summary and agent produced a rewrite; user wanted high-level bullets but agent delivered full code.
 
 • did_not_follow_instruction: Agent ignored or failed to comply with explicit instructions/system constraints.
-  - Examples: User: “Do NOT push to main.” Agent pushes to main; System says not to create pull request unless user asks for it and user didn't ask for it, agent creates pull request; user asked for bullet points only, agent gives long prose.
+  - Examples: User: 'Do NOT push to main.' Agent pushes to main; System says not to create pull request unless user asks for it and user didn't ask for it, agent creates pull request; user asked for bullet points only, agent gives long prose.
 
 • insufficient_analysis: Didn’t explore existing materials sufficiently (prior code/docs/examples) before acting.
   - Examples: User points to an existing function/file that is relavant OR already solves it; agent reinvents it.
@@ -200,29 +200,29 @@ class AnnotateConversationWithUserRubric(AnnotateConversationRubric):
     )
 
     clarification_or_restatement: BinaryPrediction = Field(
-        description="User clarifies/restates or corrects interpretation. Examples: “That’s not what I meant…”, “I meant X, not Y.”, “Let me clarify…”"
+        description="User clarifies/restates or corrects interpretation. Examples: That’s not what I meant…', 'I meant X, not Y.', 'Let me clarify…'"
     )
     correction: BinaryPrediction = Field(
-        description=("Agent broadly understood the intention but executed it incorrectly (technique/parameters/details). "
-        "Examples: “Use DESC not ASC.”, “Right table, wrong WHERE clause.”, “Same approach, wrong sort key.”")
+        description=(
+            "Agent broadly understood the intention but executed it incorrectly (technique/parameters/details). "
+            "Examples: 'Use DESC not ASC.', 'Right table, wrong WHERE clause.', 'Same approach, wrong sort key.'"
+        )
     )
     direction_change: BinaryPrediction = Field(
         description=(
-        "User adds new constraints/intent not previously specified; scope/goal evolves. "
-        "Examples: “Also handle time zones.”, “We actually need streaming, not batch.”, “Support Windows too.”"
+            "User adds new constraints/intent not previously specified; scope/goal evolves. Examples: 'Also handle time zones.', 'We actually need streaming, not batch.', 'Support Windows too.'"
         )
     )
     vcs_update_requests: BinaryPrediction = Field(
-        description="User instructs forward-moving VCS updates: commit, create branch, push, open/merge PR, tag. (Revert/reset/remove → use removal_or_reversion_request.)"
+        description="User instructs forward-moving VCS updates: commit, create branch, push, open/merge PR, tag. (Revert/reset/remove ,  use removal_or_reversion_request.)"
     )
     progress_or_scope_concern: BinaryPrediction = Field(
-        description="User flags slowness, overcomplexity, or scope bloat. Examples: “This is taking too long.”, “Try a simpler approach.”, “This goes beyond what I asked.”"
+        description="User flags slowness, overcomplexity, or scope bloat. Examples: 'This is taking too long.', 'Try a simpler approach.', 'This goes beyond what I asked.'"
     )
     frustration_or_complaint: BinaryPrediction = Field(
-        description=("User expresses dissatisfaction or irritation. Examples: “This is wrong.”, “You’re not listening.”, excessive caps or punctuation (“!!!”, “???”).")
+        description=("User expresses dissatisfaction or irritation. Examples: 'This is wrong.', 'You’re not listening.', excessive caps or punctuation ('!!!', '???').")
     )
     removal_or_reversion_request: BinaryPrediction = Field(
-        description=("User asks to remove or revert code/files/changes. Examples: “Delete the new script.”, “Undo that migration.”, “Remove these outputs.”, ”git revert”.")
+        description=("User asks to remove or revert code/files/changes. Examples: 'Delete the new script.', 'Undo that migration.', 'Remove these outputs.', 'git revert'.")
     )
     other_user_issue: BinaryPrediction = Field(description="Any other notable user concern not covered above.")
-
