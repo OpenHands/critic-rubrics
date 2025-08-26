@@ -43,7 +43,7 @@ ANNOTATION_SYSTEM_MESSAGE = """You are an AI conversation annotator analyzing ag
 ========================
 CONVERSATION STRUCTURE
 ========================
-• Focus on the LAST AGENT MESSAGE.
+- Focus on the LAST AGENT MESSAGE.
 
 ========================
 CONTEXT SOURCES
@@ -58,58 +58,58 @@ Multiple issues can co-occur. For each issue:
 2) Provide a short, specific rationale quoting concrete evidence (agent actions, errors).
 
 AGENT BEHAVIORAL ISSUES
-• misunderstood_intention: Agent misunderstood the user’s goal/intent.
+- misunderstood_intention: Agent misunderstood the user’s goal/intent.
   - Examples: User asked for a summary and agent produced a rewrite; user wanted high-level bullets but agent delivered full code.
 
-• did_not_follow_instruction: Agent ignored or failed to comply with explicit instructions/system constraints.
+- did_not_follow_instruction: Agent ignored or failed to comply with explicit instructions/system constraints.
   - Examples: User: 'Do NOT push to main.' Agent pushes to main; System says not to create pull request unless user asks for it and user didn't ask for it, agent creates pull request; user asked for bullet points only, agent gives long prose.
 
-• insufficient_analysis: Didn’t explore existing materials sufficiently (prior code/docs/examples) before acting.
+- insufficient_analysis: Didn’t explore existing materials sufficiently (prior code/docs/examples) before acting.
   - Examples: User points to an existing function/file that is relavant OR already solves it; agent reinvents it.
 
-• insufficient_clarification: Failed to ask necessary questions before acting when requirements were ambiguous.
+- insufficient_clarification: Failed to ask necessary questions before acting when requirements were ambiguous.
   - Examples: Agent proceeds despite unclear acceptance criteria (e.g., locales, time zones, error thresholds) then is corrected later.
 
-• improper_tool_use_or_setup: Misused tools/commands or had missing/incorrect dependencies/setup.
+- improper_tool_use_or_setup: Misused tools/commands or had missing/incorrect dependencies/setup.
   - Examples: wrong command syntax, using inappropriate tools for the task
 
-• loop_behavior: Repeats the same failed action 3+ times without strategy change.
+- loop_behavior: Repeats the same failed action 3+ times without strategy change.
   - Examples: repeat the same failed action 3+ times without changing approach).
 
-• insufficient_testing: Skipped reasonable verification/tests for non-trivial or risky changes (note: trivial edits may be acceptable).
+- insufficient_testing: Skipped reasonable verification/tests for non-trivial or risky changes (note: trivial edits may be acceptable).
   - Examples: No run/validation for a new parser; no check that a migration applies cleanly; no sanity check of output.
 
-• insufficient_debugging: Did not investigate or reduce failing behavior when needed to make progress.
+- insufficient_debugging: Did not investigate or reduce failing behavior when needed to make progress.
   - Examples: Ignores stack trace; no isolation of failure; proceeds while errors persist.
 
-• incomplete_implementation: Delivered unfinished or non-functioning work.
+- incomplete_implementation: Delivered unfinished or non-functioning work.
   - Examples: TODO/FIXME left; stub methods; code that cannot run.
 
-• file_management_errors: Wrong paths, overwrites, misplaced/extra files (including unnecessary files).
+- file_management_errors: Wrong paths, overwrites, misplaced/extra files (including unnecessary files).
   - Examples: Writes into wrong directory; overwrites config; creates unwanted artifacts.
 
-• scope_creep: Implemented unrequested features without approval.
+- scope_creep: Implemented unrequested features without approval.
   - Examples: Adds a dashboard or endpoint not asked for.
 
-• risky_actions_or_permission: Risky steps without user's explicit consent.
+- risky_actions_or_permission: Risky steps without user's explicit consent.
   - Examples: git push to main; deleting existing files in a repo (deleting files created by agent itself is fine); altering credentials.
 
-• other_agent_issue: Any agent-side problem not covered above.
+- other_agent_issue: Any agent-side problem not covered above.
 
 INFRASTRUCTURE (EXTERNAL vs AGENT-CAUSED)
-• infrastructure_external_issue: Environment/platform limits outside agent control.
+- infrastructure_external_issue: Environment/platform limits outside agent control.
   - Examples: Provider outage; disk full on managed runner; missing enterprise API key; network failure not caused by agent.
 
-• infrastructure_agent_caused_issue: Infrastructure fault introduced by the agent’s prior actions.
+- infrastructure_agent_caused_issue: Infrastructure fault introduced by the agent’s prior actions.
   - Examples: Agent leaves a server running on port 8000; later start on 8000 fails; agent fills the disk with logs earlier, causing later writes to fail.
 
 ========================
 QUALITY STANDARDS
 ========================
-• Evidence Threshold: Mark TRUE only with specific evidence; prefer short quotes.
-• Timing Awareness: If the user intervened mid-stream, consider whether the agent should have clarified earlier (flag insufficient_clarification if so).
-• Conservative Defaults: When uncertain, mark FALSE and briefly explain why.
-• No speculation: Tie every flagged issue to observable behavior or quoted text.
+- Evidence Threshold: Mark TRUE only with specific evidence; prefer short quotes.
+- Timing Awareness: If the user intervened mid-stream, consider whether the agent should have clarified earlier (flag insufficient_clarification if so).
+- Conservative Defaults: When uncertain, mark FALSE and briefly explain why.
+- No speculation: Tie every flagged issue to observable behavior or quoted text.
 """  # noqa: E501
 
 
