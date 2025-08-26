@@ -4,7 +4,7 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, cast
+from typing import Any, Dict, Iterable, List, Literal, Tuple, cast
 
 import litellm
 from litellm import ChatCompletionRequest, LiteLLMBatch, OpenAIFileObject, completion
@@ -16,15 +16,17 @@ class Annotator:
 
     - annotate: send a single ChatCompletionRequest to a LiteLLM proxy in real time (with retry)
     - batch_annotate: submit a batch of ChatCompletionRequests via LiteLLM Batches API (with retry for create/upload)
+    - batch_annotate_chunked: split requests into multiple batches by limits and persist per-batch metadata
     - download_annotation: given a batch_id, download outputs to a results folder
+    - download_annotations: aggregate downloads for multiple per-batch folders
     """
 
     def __init__(
         self,
         *,
-        model: Optional[str] = None,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
+        model: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
         endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"] = "/v1/chat/completions",
     ) -> None:
         self.model = model
@@ -64,7 +66,69 @@ class Annotator:
         raise RuntimeError("unreachable")
 
     # -----------------------
-    # Batch processing
+    # Batch processing helpers
+    # -----------------------
+    def _create_single_batch_from_lines(
+        self,
+        *,
+        lines: List[str],
+        results_subdir: Path,
+        completion_window: Literal["24h"],
+        max_attempts: int,
+    ) -> LiteLLMBatch:
+        results_subdir.mkdir(parents=True, exist_ok=True)
+        batch_metadata_path = results_subdir / "batch.json"
+        if batch_metadata_path.exists():
+            raise FileExistsError(
+                f"Batch metadata file already exists: {batch_metadata_path}. Cannot create a new batch in the same folder."
+            )
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            tmp_path = Path(tmpdirname) / "inputs.jsonl"
+            tmp_path.write_text("\n".join(lines), encoding="utf-8")
+
+            file_obj: OpenAIFileObject | None = None
+            for attempt in self._retrying(max_attempts=max_attempts):
+                with attempt:
+                    with open(tmp_path, "rb") as file_like:
+                        file_obj = cast(
+                            OpenAIFileObject,
+                            litellm.create_file(file=file_like, purpose="batch", **self._client_kwargs),
+                        )
+            if file_obj is None:
+                raise RuntimeError("Failed to create file for batch input after retries")
+
+        batch: LiteLLMBatch | None = None
+        for attempt in self._retrying(max_attempts=max_attempts):
+            with attempt:
+                batch = cast(
+                    LiteLLMBatch,
+                    litellm.create_batch(
+                        completion_window=completion_window,
+                        endpoint=self.endpoint,
+                        input_file_id=file_obj.id,
+                        **self._client_kwargs,
+                    ),
+                )
+        if batch is None:
+            raise RuntimeError("Failed to create batch after retries")
+
+        meta = {
+            "batch_id": cast(str, getattr(batch, "id", None)),
+            "input_file_id": cast(str, getattr(file_obj, "id", None)),
+            "endpoint": self.endpoint,
+            "status": getattr(batch, "status", None),
+            "created_at": time.time(),
+            "request_count": len(lines),
+        }
+        try:
+            batch_metadata_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        return batch
+
+    # -----------------------
+    # Single-batch API (back-compat)
     # -----------------------
     def batch_annotate(
         self,
@@ -75,18 +139,17 @@ class Annotator:
     ) -> LiteLLMBatch:
         """Submit a batch to LiteLLM Proxy and persist identifiers.
 
-        This does not poll for completion. It uploads the NDJSON, creates the batch,
-        and, if results_dir is provided, writes a metadata JSON file containing batch_id,
-        input_file_id, endpoint, status, created_at, and request_count so that
-        download_annotation can fetch outputs later.
+        Backward-compatible API: packs all provided requests into a single batch and writes
+        metadata to results_dir/batch.json. Use batch_annotate_chunked for large datasets.
         """
         folder_path = Path(results_dir)
         folder_path.mkdir(parents=True, exist_ok=True)
         batch_metadata_path = folder_path / "batch.json"
         if batch_metadata_path.exists():
-            raise FileExistsError(f"Batch metadata file already exists: {batch_metadata_path}. Cannot create a new batch.")
+            raise FileExistsError(
+                f"Batch metadata file already exists: {batch_metadata_path}. Cannot create a new batch."
+            )
 
-        # Build NDJSON body in-memory to avoid temp files on disk
         lines: List[str] = []
         for i, req in enumerate(requests):
             body: Dict[str, Any] = dict(req)
@@ -104,52 +167,142 @@ class Annotator:
         if not lines:
             raise ValueError("No requests provided to batch_annotate")
 
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            tmp_path = Path(tmpdirname) / "inputs.jsonl"
-            tmp_path.write_text("\n".join(lines), encoding="utf-8")
+        return self._create_single_batch_from_lines(
+            lines=lines,
+            results_subdir=folder_path,
+            completion_window=completion_window,
+            max_attempts=max_attempts,
+        )
 
-            # Upload JSONL as a file for batch input with retry; reopen file each attempt
-            file_obj: OpenAIFileObject | None = None
-            for attempt in self._retrying(max_attempts=max_attempts):
-                with attempt:
-                    with open(tmp_path, "rb") as file_like:
-                        file_obj = cast(
-                            OpenAIFileObject,
-                            litellm.create_file(file=file_like, purpose="batch", **self._client_kwargs)
-                        )
-            if file_obj is None:
-                raise RuntimeError("Failed to create file for batch input after retries")
+    # -----------------------
+    # Multi-batch API with limits
+    # -----------------------
+    def batch_annotate_chunked(
+        self,
+        requests: Iterable[ChatCompletionRequest],
+        results_dir: str | Path,
+        *,
+        completion_window: Literal["24h"] = "24h",
+        max_attempts: int = 3,
+        max_requests_per_batch: int | None = 50_000,
+        max_bytes_per_batch: int | None = 200 * 1024 * 1024,
+        custom_id_prefix: str = "req_",
+    ) -> List[LiteLLMBatch]:
+        """Split requests into multiple batches, respecting limits.
 
-        # Create the batch with retry
-        batch: LiteLLMBatch | None = None
-        for attempt in self._retrying(max_attempts=max_attempts):
-            with attempt:
-                batch = cast(
-                    LiteLLMBatch,
-                    litellm.create_batch(
-                        completion_window=completion_window,
-                        endpoint=self.endpoint,
-                        input_file_id=file_obj.id,
-                        **self._client_kwargs,
-                    ),
-                )
-        if batch is None:
-            raise RuntimeError("Failed to create batch after retries")
+        - results_dir structure:
+          results_dir/
+            manifest.json
+            batches/
+              batch_000001/
+                batch.json
+                outputs.ndjson (when downloaded)
+              batch_000002/
+                ...
 
-        # Persist batch metadata
-        assert folder_path is not None
-        meta = {
-            "batch_id": cast(str, getattr(batch, "id", None)),
-            "input_file_id": file_obj.id,
+        Returns a list of LiteLLMBatch objects (one per created batch).
+        """
+        root = Path(results_dir)
+        batches_dir = root / "batches"
+        batches_dir.mkdir(parents=True, exist_ok=True)
+
+        created_batches: List[LiteLLMBatch] = []
+        manifest = {
             "endpoint": self.endpoint,
-            "status": batch.status,
+            "model": self.model,
+            "limits": {
+                "max_requests_per_batch": max_requests_per_batch,
+                "max_bytes_per_batch": max_bytes_per_batch,
+            },
             "created_at": time.time(),
-            "request_count": len(lines),
+            "batches": [],  # filled as we create batches
         }
-        batch_metadata_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
-        return batch
+        def flush_batch(batch_idx: int, lines: List[str]) -> None:
+            if not lines:
+                return
+            subdir = batches_dir / f"batch_{batch_idx:06d}"
+            batch = self._create_single_batch_from_lines(
+                lines=lines,
+                results_subdir=subdir,
+                completion_window=completion_window,
+                max_attempts=max_attempts,
+            )
+            created_batches.append(batch)
+            manifest["batches"].append(
+                {
+                    "batch_index": batch_idx,
+                    "batch_dir": str(subdir),
+                    "batch_id": cast(str, getattr(batch, "id", None)),
+                    "status": getattr(batch, "status", None),
+                    "request_count": len(lines),
+                }
+            )
 
+        current_lines: List[str] = []
+        current_bytes = 0
+        current_count = 0
+        batch_index = 1
+        global_i = 0
+
+        for req in requests:
+            body: Dict[str, Any] = dict(req)
+            if "model" not in body:
+                if self.model is None:
+                    raise ValueError("ChatCompletionRequest missing 'model' and no default model set")
+                body["model"] = self.model
+            line_obj = {
+                "custom_id": f"{custom_id_prefix}{global_i:08d}",
+                "method": "POST",
+                "url": self.endpoint,
+                "body": body,
+            }
+            line_str = json.dumps(line_obj, separators=(",", ":"))
+            line_bytes = len(line_str.encode("utf-8"))
+            overhead = 1 if current_lines else 0  # newline between lines
+
+            would_bytes = current_bytes + overhead + line_bytes
+            would_count = current_count + 1
+
+            if (
+                (max_requests_per_batch is not None and would_count > max_requests_per_batch)
+                or (max_bytes_per_batch is not None and would_bytes > max_bytes_per_batch)
+            ):
+                if not current_lines:
+                    # Single line exceeds limits; refuse with a clear error
+                    raise ValueError(
+                        "Single request exceeds configured batch size limits; lower request payload or increase limits"
+                    )
+                flush_batch(batch_index, current_lines)
+                batch_index += 1
+                current_lines = []
+                current_bytes = 0
+                current_count = 0
+                overhead = 0
+                would_bytes = line_bytes
+                would_count = 1
+
+            current_lines.append(line_str)
+            current_bytes = would_bytes
+            current_count = would_count
+            global_i += 1
+
+        if current_lines:
+            flush_batch(batch_index, current_lines)
+
+        # Persist manifest at root
+        manifest_path = root / "manifest.json"
+        try:
+            manifest["num_batches"] = len(created_batches)
+            manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+        return created_batches
+
+    # -----------------------
+    # Download helpers
+    # -----------------------
     def download_annotation(
         self,
         results_dir: str | Path,
@@ -158,11 +311,7 @@ class Annotator:
     ) -> Tuple[litellm.LiteLLMBatch, List[Dict[str, Any]]]:
         """Fetch latest batch status and download outputs into results_dir if ready.
 
-        Workflow:
-        - Read results_dir/batch.json for batch_id
-        - retrieve_batch with retry; update batch.json with latest status
-        - If completed and output_file_id is present, download to outputs.ndjson and parse
-        - Return (batch, parsed_outputs). If not completed, outputs is []
+        Expects results_dir to contain a single batch.json. For multi-batch runs, see download_annotations.
         """
         folder = Path(results_dir)
         folder.mkdir(parents=True, exist_ok=True)
@@ -175,11 +324,10 @@ class Annotator:
         except Exception as e:
             raise RuntimeError(f"Failed to read batch metadata: {e}")
 
-        batch_id = cast(Optional[str], meta_obj.get("batch_id"))
+        batch_id = cast(str | None, meta_obj.get("batch_id"))
         if not batch_id:
             raise ValueError("batch.json missing 'batch_id'")
 
-        # Retrieve batch with retry
         batch: Any | None = None
         for attempt in self._retrying(max_attempts=max_attempts):
             with attempt:
@@ -190,7 +338,6 @@ class Annotator:
         if batch is None:
             raise RuntimeError("Failed to retrieve batch after retries")
 
-        # Update metadata with latest status
         meta_obj.update(
             {
                 "batch_id": cast(str, getattr(batch, "id", batch_id)),
@@ -205,7 +352,6 @@ class Annotator:
         except Exception:
             pass
 
-        # If not completed, nothing to download yet
         if getattr(batch, "status", None) != "completed":
             return batch, []
 
@@ -213,7 +359,6 @@ class Annotator:
         if not output_file_id:
             return batch, []
 
-        # Download file content with retry
         content: Any | None = None
         for attempt in self._retrying(max_attempts=max_attempts):
             with attempt:
@@ -233,7 +378,6 @@ class Annotator:
         except Exception:
             pass
 
-        # Parse NDJSON into a list of dicts
         outputs: List[Dict[str, Any]] = []
         for line in raw_bytes.decode("utf-8").splitlines():
             s = line.strip()
@@ -244,6 +388,38 @@ class Annotator:
             except Exception:
                 outputs.append({"raw": s})
         return batch, outputs
+
+    def download_annotations(
+        self,
+        results_dir: str | Path,
+        *,
+        max_attempts: int = 3,
+    ) -> Tuple[List[litellm.LiteLLMBatch], List[Dict[str, Any]]]:
+        """Aggregate download for a multi-batch results directory.
+
+        Looks for results_dir/manifest.json and results_dir/batches/*/batch.json. For each batch
+        folder, calls download_annotation and concatenates outputs.
+        Returns (batches, outputs).
+        """
+        root = Path(results_dir)
+        batches_root = root / "batches"
+        if not batches_root.exists():
+            # Fallback: treat root as single-batch folder
+            single_batch, outputs = self.download_annotation(root, max_attempts=max_attempts)
+            return [single_batch], outputs
+
+        all_batches: List[litellm.LiteLLMBatch] = []
+        all_outputs: List[Dict[str, Any]] = []
+        for sub in sorted(batches_root.iterdir()):
+            if not sub.is_dir():
+                continue
+            meta = sub / "batch.json"
+            if not meta.exists():
+                continue
+            batch, outputs = self.download_annotation(sub, max_attempts=max_attempts)
+            all_batches.append(batch)
+            all_outputs.extend(outputs)
+        return all_batches, all_outputs
 
 
 
