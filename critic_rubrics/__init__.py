@@ -1,3 +1,4 @@
+from .annotation import annotate, batch_annotate, get_batch_results
 from .prediction import (
     BasePrediction,
     BinaryPrediction,
@@ -13,4 +14,7 @@ __all__ = [
     "ClassificationPrediction",
     "TextPrediction",
     "BaseRubrics",
+    "annotate",
+    "batch_annotate",
+    "get_batch_results"
 ]
