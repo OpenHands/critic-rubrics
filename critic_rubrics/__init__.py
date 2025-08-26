@@ -8,13 +8,4 @@ from .prediction import (
 from .rubrics import BaseRubrics
 
 
-__all__ = [
-    "BasePrediction",
-    "BinaryPrediction",
-    "ClassificationPrediction",
-    "TextPrediction",
-    "BaseRubrics",
-    "annotate",
-    "batch_annotate",
-    "get_batch_results"
-]
+__all__ = ["BasePrediction", "BinaryPrediction", "ClassificationPrediction", "TextPrediction", "BaseRubrics", "annotate", "batch_annotate", "get_batch_results"]

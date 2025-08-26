@@ -124,7 +124,7 @@ When seeing code, make three quick judgments:
 - You can run pytest with `uv run pytest`
 - We use `uv` for dependency management, use `uv add` to add dependency. Use `--dev` group for development only.
 - strict pre-commit hooks `.pre-commit-config.yaml` that includes
-  - type check through pyright
+  - type check through `pyright`. PLEASE DON'T INSTALL OR USE MYPY at any time!
   - linting and formatter with `uv ruff`
 - Don't write TOO MUCH test, you should write just enough to cover edge cases.
 - AFTER you edit ONE file, you should run pre-commit hook on that file via `uv run pre-commit run --files [filepath]` to make sure you didn't break it.
