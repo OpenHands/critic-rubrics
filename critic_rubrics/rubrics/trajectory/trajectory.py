@@ -107,7 +107,6 @@ INFRASTRUCTURE (EXTERNAL vs AGENT-CAUSED)
 QUALITY STANDARDS
 ========================
 - Evidence Threshold: Mark TRUE only with specific evidence; prefer short quotes.
-- Timing Awareness: If the user intervened mid-stream, consider whether the agent should have clarified earlier (flag insufficient_clarification if so).
 - Conservative Defaults: When uncertain, mark FALSE and briefly explain why.
 - No speculation: Tie every flagged issue to observable behavior or quoted text.
 """  # noqa: E501
