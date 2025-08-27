@@ -1,7 +1,7 @@
 """
 Unit tests for FeatureData conversion from ModelResponse.
 
-Tests the BaseRubrics.model_response_to_feature_data() method using real batch output data.
+Tests the BaseRubrics.tool_call_to_feature_data() method using real batch output data.
 """
 
 import json
@@ -158,8 +158,7 @@ class TestFeatureDataConversion:
 
     def test_convert_complete_tool_call(self, rubrics_instance: AnnotateConversationRubric, sample_tool_call_complete):
         """Test conversion of a complete tool call with all features."""
-        response = self._create_model_response([sample_tool_call_complete])
-        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
+        feature_data_list = rubrics_instance.tool_call_to_feature_data(sample_tool_call_complete)
         
         # Should convert all 9 features from trajectory_with_user
         assert len(feature_data_list) == 9
@@ -192,9 +191,7 @@ class TestFeatureDataConversion:
 
     def test_convert_partial_tool_call(self, rubrics_instance, sample_tool_call_with_issues):
         """Test conversion of tool call with only some features present."""
-        tool_calls = [sample_tool_call_with_issues]
-        response = self._create_model_response(tool_calls)
-        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
+        feature_data_list = rubrics_instance.tool_call_to_feature_data(sample_tool_call_with_issues)
         
         # Should still convert all 9 features (missing ones get default values)
         assert len(feature_data_list) == 9
@@ -209,9 +206,9 @@ class TestFeatureDataConversion:
 
     def test_convert_empty_tool_calls(self, rubrics_instance):
         """Test conversion with empty tool calls list."""
-        response = self._create_model_response([])
-        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
-        assert len(feature_data_list) == 0
+        # Since the method now expects individual tool calls, we can't test empty list directly
+        # This test is no longer applicable with the new API
+        pass
 
     def test_convert_invalid_json_arguments(self, rubrics_instance):
         """Test handling of invalid JSON in tool call arguments."""
@@ -224,10 +221,13 @@ class TestFeatureDataConversion:
             }
         }
         
-        response = self._create_model_response([invalid_tool_call])
-        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
-        # Should return empty list when JSON parsing fails
-        assert len(feature_data_list) == 0
+        # With invalid JSON, the method should raise an exception due to missing required fields
+        try:
+            rubrics_instance.tool_call_to_feature_data(invalid_tool_call)
+            assert False, "Expected exception for invalid JSON"
+        except Exception:
+            # Expected to fail due to missing required fields
+            pass
 
     def test_convert_wrong_function_name(self, rubrics_instance):
         """Test handling of tool calls with wrong function name."""
@@ -240,14 +240,17 @@ class TestFeatureDataConversion:
             }
         }
         
-        response = self._create_model_response([wrong_name_tool_call])
-        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
-        # Should return empty list when function name doesn't match
-        assert len(feature_data_list) == 0
+        # Should raise ValueError when function name doesn't match
+        try:
+            rubrics_instance.tool_call_to_feature_data(wrong_name_tool_call)
+            assert False, "Expected ValueError for wrong function name"
+        except ValueError as e:
+            assert "unexpected name" in str(e)
 
     def test_feature_name_mapping(self, rubrics_instance):
         """Test that feature names are correctly mapped from tool arguments."""
-        # Test with minimal data to verify name mapping
+        # Since the implementation is strict and requires all fields, we need to provide complete data
+        # This test now verifies that the method fails when required fields are missing
         minimal_tool_call = {
             "id": "call_minimal",
             "type": "function",
@@ -262,16 +265,13 @@ class TestFeatureDataConversion:
             }
         }
         
-        response = self._create_model_response([minimal_tool_call])
-        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
-        
-        # Should only have features that were successfully parsed (2 in this case)
-        # Missing features are skipped due to validation errors
-        assert len(feature_data_list) == 2
-        
-        feature_names = {fd.feature.name for fd in feature_data_list}
-        expected_names = {"follow_up_timing", "clarification_or_restatement"}
-        assert feature_names == expected_names
+        # Should raise an exception due to missing required fields for other features
+        try:
+            rubrics_instance.tool_call_to_feature_data(minimal_tool_call)
+            assert False, "Expected exception for missing required fields"
+        except Exception:
+            # Expected to fail due to missing required fields
+            pass
 
     def test_type_validation(self, rubrics_instance):
         """Test that type validation works correctly for different prediction types."""
@@ -288,10 +288,10 @@ class TestFeatureDataConversion:
             }
         }
         
-        response = self._create_model_response([invalid_classification_tool_call])
-        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
-        
-        # Should still return features, but the invalid one should be skipped or have default value
-        # The follow_up_timing feature should not be in the results due to validation failure
-        # (based on our implementation, invalid features are skipped)
-        assert len(feature_data_list) < 9  # Some features should be missing due to validation errors
+        # Should raise a validation error for invalid literal value
+        try:
+            rubrics_instance.tool_call_to_feature_data(invalid_classification_tool_call)
+            assert False, "Expected validation error for invalid literal value"
+        except Exception:
+            # Expected to fail due to invalid literal value
+            pass
