@@ -126,11 +126,11 @@ class Annotator:
             if model:  # always override model if provided
                 body["model"] = model
 
-            if "metadata" in request and request.get("metadata", {}).get("custom_request_id"):
-                custom_id = request["metadata"]["custom_request_id"]
+            custom_id = f"req_{output_dir.name}_{i:08d}"
+            if "metadata" in request:
+                custom_id = request.get("metadata", {}).get("custom_request_id", custom_id)
                 request.pop("metadata")  # remove so it don't cause issues with LLM completions
-            else:
-                custom_id = f"req_{output_dir.name}_{i:08d}"
+            breakpoint()
 
             line_obj = {
                 "custom_id": custom_id,
