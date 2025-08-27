@@ -5,10 +5,10 @@ from typing import Any
 
 from litellm import ChatCompletionRequest, ChatCompletionToolChoiceObjectParam, ChatCompletionToolParam
 from litellm.types.utils import ChatCompletionMessageToolCall
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from critic_rubrics.feature import Feature, FeatureData
-from critic_rubrics.prediction import BasePrediction, PredictionMissingFieldError
+from critic_rubrics.prediction import BasePrediction
 
 
 logger = logging.getLogger(__name__)
@@ -135,15 +135,8 @@ class BaseRubrics(BaseModel):
 
         # Convert each feature
         for feature in self.features:
-            try:
-                feature_data = FeatureData.from_tool_args(feature, tool_args)
-            except ValidationError as e:
-                relevant_args = {k: v for k, v in tool_args.items() if feature.name in k}
-                logger.warning(f"Validation error for feature {feature.name}: {e}.\nRelevant args: {relevant_args}\n\n")
-                continue
-            except PredictionMissingFieldError as e:
-                logger.warning(f"Missing field for feature {feature.name}: {e}")
-                continue
+            # Let exceptions bubble up for tests to assert on specific error types
+            feature_data = FeatureData.from_tool_args(feature, tool_args)
             feature_data_list.append(feature_data)
 
         return feature_data_list
