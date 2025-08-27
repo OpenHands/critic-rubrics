@@ -23,7 +23,6 @@ class AnnotateConversationRubric(BaseRubrics):
         return ChatCompletionRequest(
             model=model,
             messages=messages,
-            temperature=0.0,
             tools=self.tools,
             tool_choice=self.tool_choice,
         )
