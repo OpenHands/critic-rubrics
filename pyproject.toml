@@ -5,7 +5,6 @@ description = "Unified rubrics system for LLM-based feature extraction and conve
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "ah-data>=0.1.3",
     "litellm>=1.76.0",
     "pydantic>=2.11.7",
     "rich>=14.1.0",
@@ -49,6 +48,3 @@ lines-after-imports = 2
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["E501"]
-
-[tool.uv.sources]
-ah-data = { git = "https://github.com/All-Hands-AI/data-sdk" }

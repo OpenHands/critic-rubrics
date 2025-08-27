@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 import rich
-from ah_data import TraceSegment
 from litellm import ChatCompletionRequest
 
 from critic_rubrics.rubrics import AnnotateConversationRubric
@@ -52,7 +51,7 @@ def main():
                 conversation_id = data["conversation_id"]
                 segment_id = data["segment_id"]
                 assert "trace_segment" in data
-                trace_segment = TraceSegment.model_validate(data["trace_segment"])
+                trace_segment = data["trace_segment"]
                 messages: list[dict[str, Any]]
                 has_user_follow_up: bool = trace_segment.follow_up_user_message is not None
                 
