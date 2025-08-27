@@ -2,6 +2,9 @@
 
 Type-safe function-calling-based LLM-as-judge evaluation framework for structured prediction and analysis.
 
+> [!WARNING]
+> This repository is an active research project. APIs and implementations are subject to major changes. Use with caution.
+
 ## To Install
 
 ```bash
