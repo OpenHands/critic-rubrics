@@ -25,4 +25,5 @@ class AnnotateConversationRubric(BaseRubrics):
             messages=messages,
             tools=self.tools,
             tool_choice=self.tool_choice,
+            temperature=0.0,
         )
