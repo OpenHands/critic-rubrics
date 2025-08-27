@@ -1,7 +1,6 @@
 """Mixin classes for rubrics functionality."""
 
 import json
-import tempfile
 import time
 from pathlib import Path
 from typing import Any, Iterable, Literal, cast
@@ -58,6 +57,7 @@ class Annotator:
         completion_window: Literal["24h"] = "24h",
         max_requests: int = 50_000,
         max_bytes: int = 200 * 1024 * 1024,
+        delete_after_upload: bool = True,
     ) -> list[str]:
         """Send batch requests to LiteLLM. Returns list of batch IDs."""
         output_dir = Path(output_dir)
@@ -79,48 +79,46 @@ class Annotator:
             if not current_batch:
                 return
 
-            # Write batch to temp file
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=True) as f:
+            batch_input_file = output_dir / f"batch_{batch_num:06d}_inputs.jsonl"
+            with open(batch_input_file, "w") as f:
                 for line in current_batch:
                     f.write(line + "\n")
-                temp_path = f.name
-                print(f",  Flushing batch {batch_num} with {len(current_batch)} requests to {temp_path}...")
+                print(f"  Flushing batch {batch_num} with {len(current_batch)} requests to {batch_input_file}...")
 
-                # Upload file
-                litellm.suppress_debug_info = False
-                import os
-                os.environ['LITELLM_LOG'] = 'DEBUG'
-                with open(temp_path, "rb") as f:
-                    file_obj = litellm.create_file(file=f, purpose="batch", custom_llm_provider=custom_llm_provider, **kwargs)
-                    file_obj = cast(OpenAIFileObject, file_obj)
+            with open(batch_input_file, "rb") as f:
+                file_obj = litellm.create_file(file=f, purpose="batch", custom_llm_provider=custom_llm_provider, **kwargs)
+                file_obj = cast(OpenAIFileObject, file_obj)
 
-                # Create batch
-                batch = litellm.create_batch(
-                    completion_window=completion_window,
-                    endpoint=endpoint,
-                    input_file_id=file_obj.id,
-                    custom_llm_provider=custom_llm_provider,
-                    metadata={},
-                    **kwargs,
-                )
-                batch = cast(LiteLLMBatch, batch)
+            if delete_after_upload:
+                batch_input_file.unlink()
 
-                # Save batch info
-                batch_info = {
-                    "batch_id": batch.id,
-                    "input_file_id": file_obj.id,
-                    "created_at": time.time(),
-                    "request_count": len(current_batch),
-                    "custom_llm_provider": custom_llm_provider,
-                }
+            # Create batch
+            batch = litellm.create_batch(
+                completion_window=completion_window,
+                endpoint=endpoint,
+                input_file_id=file_obj.id,
+                custom_llm_provider=custom_llm_provider,
+                metadata={},
+                **kwargs,
+            )
+            batch = cast(LiteLLMBatch, batch)
 
-                batch_file = output_dir / f"batch_{batch_num:06d}.json"
-                batch_file.write_text(json.dumps(batch_info, indent=2))
+            # Save batch info
+            batch_info = {
+                "batch_id": batch.id,
+                "input_file_id": file_obj.id,
+                "created_at": time.time(),
+                "request_count": len(current_batch),
+                "custom_llm_provider": custom_llm_provider,
+            }
 
-                batch_ids.append(batch.id)
-                batch_num += 1
-                current_batch = []
-                current_size = 0
+            batch_file = output_dir / f"batch_{batch_num:06d}.json"
+            batch_file.write_text(json.dumps(batch_info, indent=2))
+
+            batch_ids.append(batch.id)
+            batch_num += 1
+            current_batch = []
+            current_size = 0
 
         # Process requests
         for i, request in enumerate(requests):
