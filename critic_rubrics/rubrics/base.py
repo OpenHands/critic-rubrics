@@ -7,13 +7,12 @@ from litellm.types.utils import ModelResponse
 from pydantic import BaseModel
 
 from critic_rubrics.feature import Feature
-from critic_rubrics.mixins import AnnotationMixin
 from critic_rubrics.prediction import BasePrediction
 
 
 logger = logging.getLogger(__name__)
 
-class BaseRubrics(BaseModel, AnnotationMixin):
+class BaseRubrics(BaseModel):
     tool_name: str
     tool_description: str
     features: list[Feature]

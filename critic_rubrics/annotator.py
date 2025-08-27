@@ -3,36 +3,19 @@
 import json
 import tempfile
 import time
-from abc import abstractmethod
 from pathlib import Path
-from typing import Any, Iterable, Literal, Protocol, cast
+from typing import Any, Iterable, Literal, cast
 
 import litellm
 from litellm import ChatCompletionRequest, HttpxBinaryResponseContent, OpenAIFileObject, completion
 from litellm.types.utils import LiteLLMBatch, ModelResponse
 
-from critic_rubrics.feature import Feature
 
-
-class RubricsProtocol(Protocol):
-    """Protocol defining required attributes for rubrics classes."""
-
-    features: list["Feature"]
-
-    @abstractmethod
-    def create_annotation_request(
-        self,
-        inputs: dict[str, Any],
-        model: str,
-    ) -> ChatCompletionRequest | None:
-        ...
-
-
-class AnnotationMixin:
+class Annotator:
     """Mixin providing annotation capabilities for rubrics."""
 
+    @staticmethod
     def annotate(
-        self,
         request: ChatCompletionRequest,
         *,
         model: str | None = None,
@@ -62,8 +45,8 @@ class AnnotationMixin:
                 time.sleep(2**attempt)  # exponential backoff
         raise RuntimeError("Unreachable")
 
+    @staticmethod
     def batch_annotate(
-        self,
         requests: Iterable[ChatCompletionRequest],
         output_dir: str | Path,
         custom_llm_provider: Literal["openai", "azure", "vertex_ai"],
@@ -162,8 +145,8 @@ class AnnotationMixin:
 
         return batch_ids
 
+    @staticmethod
     def get_batch_results(
-        self,
         batch_id: str,
         custom_llm_provider: Literal["openai", "azure", "vertex_ai"],
         *,

@@ -1,3 +1,4 @@
+from .annotator import Annotator
 from .prediction import (
     BasePrediction,
     BinaryPrediction,
@@ -7,4 +8,4 @@ from .prediction import (
 from .rubrics import BaseRubrics
 
 
-__all__ = ["BasePrediction", "BinaryPrediction", "ClassificationPrediction", "TextPrediction", "BaseRubrics"]
+__all__ = ["BasePrediction", "BinaryPrediction", "ClassificationPrediction", "TextPrediction", "BaseRubrics", "Annotator"] 
