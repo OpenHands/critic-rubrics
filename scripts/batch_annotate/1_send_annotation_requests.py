@@ -41,18 +41,18 @@ def generate_requests_from_traces(trace_dir: Path, pattern: str, limit: int | No
                 trace_segment = data["trace_segment"]
 
                 assert "follow_up_user_message" in trace_segment
-                has_user_follow_up = trace_segment.follow_up_user_message is not None
+                has_user_follow_up = trace_segment["follow_up_user_message"] is not None
                 rubric = get_trajectory_level_rubrics(has_user_follow_up=has_user_follow_up)
 
                 if has_user_follow_up:
-                    messages = trace_segment.trace + [trace_segment.follow_up_user_message]
+                    messages = trace_segment["trace"] + [trace_segment["follow_up_user_message"]]
                 else:
-                    messages = trace_segment.trace
+                    messages = trace_segment["trace"]
 
                 annotation_request = rubric.create_annotation_request(
                     inputs={
                         "messages": messages,
-                        "tools": trace_segment.tools,
+                        "tools": trace_segment["tools"],
                     }
                 )
                 if annotation_request is None:

@@ -30,7 +30,7 @@ class Annotator:
 
         kwargs = {}
         if base_url:
-            kwargs["base_url"] = base_url
+            kwargs["api_base"] = base_url
         if api_key:
             kwargs["api_key"] = api_key
 
@@ -65,7 +65,7 @@ class Annotator:
 
         kwargs = {}
         if base_url:
-            kwargs["base_url"] = base_url
+            kwargs["api_base"] = base_url
         if api_key:
             kwargs["api_key"] = api_key
 
@@ -156,7 +156,7 @@ class Annotator:
         """Get batch status and results if ready."""
         kwargs = {}
         if base_url:
-            kwargs["base_url"] = base_url
+            kwargs["api_base"] = base_url
         if api_key:
             kwargs["api_key"] = api_key
 
