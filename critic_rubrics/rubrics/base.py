@@ -95,17 +95,6 @@ class BaseRubrics(BaseModel):
         """
         raise NotImplementedError("Subclasses must implement create_annotation_request")
 
-    def response_to_annotation(self, response: ModelResponse) -> list[Feature]:
-        """Convert the LLM response (tool calls) into a structured annotation.
-
-        response: ModelResponse
-            The raw response from the LLM.
-
-        Returns:
-            list[Feature]: The structured annotation.
-        """
-        raise NotImplementedError("Subclasses must implement response_to_annotation")
-
     def model_response_to_feature_data(self, response: ModelResponse) -> list[FeatureData]:
         """Convert ModelResponse into a list of FeatureData with type checking.
         
@@ -165,7 +154,6 @@ class BaseRubrics(BaseModel):
                     feature_data = FeatureData.from_tool_args(feature, tool_args)
                     feature_data_list.append(feature_data)
                 except ValueError as e:
-                    logger.warning(f"Failed to parse feature '{feature.name}': {e}")
-                    # Continue with other features rather than failing completely
-                    
+                    logger.warning(f"Failed to parse feature '{feature.name}': {e}.\nWe got: {json.dumps(tool_args, indent=2)}")
+
         return feature_data_list
