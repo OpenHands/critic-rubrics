@@ -114,6 +114,7 @@ def main():
     pending_batches = batch_ids.copy()
     completed_batches = []
     failed_batches = []
+    progress_log = []  # Keep permanent record of progress
 
     with Progress(
         SpinnerColumn(),
@@ -142,27 +143,37 @@ def main():
                             with error_file.open("w") as f:
                                 for error in results:
                                     f.write(json.dumps(error) + "\n")
-                            progress.update(task, description=f"[red]✗ {batch_name} - {len(results)} errors saved")
+                            msg = f"✗ {batch_name} - {len(results)} errors saved"
+                            progress.update(task, description=f"[red]{msg}")
+                            progress_log.append(f"[red]{msg}[/red]")
                         else:
                             output_file = output_dir / f"{batch_name}_results.jsonl"
                             with output_file.open("w") as f:
                                 for result in results:
                                     f.write(json.dumps(result) + "\n")
-                            progress.update(task, description=f"[green]✓ {batch_name} - {len(results)} results saved")
+                            msg = f"✓ {batch_name} - {len(results)} results saved"
+                            progress.update(task, description=f"[green]{msg}")
+                            progress_log.append(f"[green]{msg}[/green]")
 
                         completed_batches.append((batch_id, batch_name, len(results)))
 
                     elif status["status"] in ["failed", "expired", "cancelled"]:
                         failed_batches.append((batch_id, batch_name, status["status"]))
-                        progress.update(task, description=f"[red]✗ {batch_name} - {status['status']}")
+                        msg = f"✗ {batch_name} - {status['status']}"
+                        progress.update(task, description=f"[red]{msg}")
+                        progress_log.append(f"[red]{msg}[/red]")
 
                     else:
                         still_pending.append((batch_id, batch_name))
-                        progress.update(task, description=f"[yellow]⏳ {batch_name} - {status['status']}")
+                        msg = f"⏳ {batch_name} - {status['status']}"
+                        progress.update(task, description=f"[yellow]{msg}")
+                        progress_log.append(f"[yellow]{msg}[/yellow]")
 
                 except Exception as e:
                     failed_batches.append((batch_id, batch_name, str(e)))
-                    progress.update(task, description=f"[red]✗ {batch_name} - Error: {e}")
+                    msg = f"✗ {batch_name} - Error: {e}"
+                    progress.update(task, description=f"[red]{msg}")
+                    progress_log.append(f"[red]{msg}[/red]")
 
                 progress.remove_task(task)
 
@@ -174,6 +185,12 @@ def main():
                 progress.remove_task(wait_task)
             else:
                 break
+
+    # Print permanent progress log
+    if progress_log:
+        rich.print("\n[bold blue]Processing Log:[/bold blue]")
+        for log_entry in progress_log:
+            rich.print(f"  {log_entry}")
 
     # Print summary
     table = Table(title="Batch Processing Summary")
