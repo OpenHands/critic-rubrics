@@ -139,9 +139,9 @@ class Annotator:
                 body["model"] = model
 
             custom_id = f"req_{output_dir.name}_{i:08d}"
-            if "metadata" in request:
-                custom_id = request.get("metadata", {}).get("custom_request_id", custom_id)
-                request.pop("metadata")  # remove so it don't cause issues with LLM completions
+            if "metadata" in body and isinstance(body["metadata"], dict):
+                custom_id = body["metadata"].get("custom_request_id", custom_id)
+                body.pop("metadata")  # remove so it don't cause issues with LLM completions
 
             line_obj = {
                 "custom_id": custom_id,
