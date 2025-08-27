@@ -1,15 +1,11 @@
-from typing import Any, ClassVar, Literal
+from typing import Literal
 
-from litellm import ChatCompletionRequest
-from pydantic import Field
-
+from ...feature import Feature
 from ...prediction import (
     BinaryPrediction,
     ClassificationPrediction,
     TextPrediction,
 )
-from ..base import BaseRubrics
-from .converter import transform_for_annotator
 
 
 SentimentPrediction = ClassificationPrediction[Literal["Positive", "Negative", "Neutral"]]
@@ -141,112 +137,135 @@ Quick disambiguation (common splits)
 - insufficient_testing vs insufficient_debugging: skipped reasonable verification vs didn’t investigate a failing state enough to make progress.
 """
 
-
-class AnnotateConversationRubric(BaseRubrics):
-    TOOL_NAME: ClassVar[str] = "annotate_conversation"
-    TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation."
-    SYSTEM_MESSAGE: ClassVar[str] = ANNOTATION_SYSTEM_MESSAGE
-    USER_MESSAGE: ClassVar[str | None] = ANNOTATION_INSTRUCTION_MESSAGE
-
+FEATURES = [
     # --- Generic Questions ---
-    user_goal_summary: TextPrediction = Field(description="One sentence describing what the user is trying to accomplish.")
-    overall_sentiment: SentimentPrediction = Field(description="Classify the overall sentiment of the user's messages.")
-    task_type: TaskTypePrediction = Field(
+    Feature(
+        name="user_goal_summary",
+        description="One sentence describing what the user is trying to accomplish.",
+        prediction_type=TextPrediction
+    ),
+    Feature(
+        name="overall_sentiment",
+        description="Classify the overall sentiment of the user's messages.",
+        prediction_type=SentimentPrediction
+    ),
+    Feature(
+        name="task_type",
         description=(
             "Classify the type of task into exactly one category."
             "Choose from: Fix Bugs, Implement Features, Create Programs from Scratch, "
             "Fix Failing Continuous Integration, Fix Merge Conflicts, Write Documentation, "
             "Perform Deployments, Perform Data Analysis."
-        )
-    )
-    dev_cluster: DevClusterPrediction = Field(
+        ),
+        prediction_type=TaskTypePrediction
+    ),
+    Feature(
+        name="dev_cluster",
         description=(
             "Choose the best-fitting development cluster: "
             "Web Development (frontend/backend, UI/UX, e-commerce), "
             "DevOps & Infrastructure (CI/CD, Docker/Kubernetes, cloud, env config), "
             "AI Integration (OpenAI/Anthropic/Gemini APIs, ML systems), "
             "Code Management (Git ops, PRs, docs, bug fixes, features)."
-        )
-    )
-
+        ),
+        prediction_type=DevClusterPrediction
+    ),
+    
     # --- AGENT BEHAVIORAL ISSUES ---
-    misunderstood_intention: BinaryPrediction = Field(
-        description="Agent misunderstood the user’s goal/intent. Examples: User asked for a summary; agent produced a rewrite; user wanted high-level bullets; agent delivered full code."
-    )
-    did_not_follow_instruction: BinaryPrediction = Field(
+    Feature(
+        name="misunderstood_intention",
+        description="Agent misunderstood the user's goal/intent. Examples: User asked for a summary; agent produced a rewrite; user wanted high-level bullets; agent delivered full code.",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="did_not_follow_instruction",
         description=(
             "Agent ignored or failed to comply with explicit instructions/system constraints. "
             "Examples: User: 'Do NOT push to main.' Agent pushes; System says not to create a PR unless the user asks and the user didn't ask; "
             "agent creates a PR; user asked for bullet points only, agent gives long prose."
-        )
-    )
-    insufficient_analysis: BinaryPrediction = Field(
+        ),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="insufficient_analysis",
         description=(
-            "Didn’t explore existing materials (prior code/docs/examples) before acting. Examples: User points to an existing function/file that is relevant or already solves it; agent reinvents it."
-        )
-    )
-    insufficient_clarification: BinaryPrediction = Field(
+            "Didn't explore existing materials (prior code/docs/examples) before acting. Examples: User points to an existing function/file that is relevant or already solves it; agent reinvents it."
+        ),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="insufficient_clarification",
         description=(
             "Failed to ask necessary questions before acting when requirements were ambiguous. "
             "Examples: Agent proceeds despite unclear acceptance criteria (locales, time zones, error thresholds) then is corrected later."
-        )
-    )
-    improper_tool_use_or_setup: BinaryPrediction = Field(
+        ),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="improper_tool_use_or_setup",
         description=(
             "Misused tools/commands or used inappropriate tools; missing/incorrect dependencies/setup. "
             "Examples: wrong command syntax; using an inappropriate tool; import errors; wrong API URL; malformed auth header."
-        )
-    )
-    loop_behavior: BinaryPrediction = Field(description="Repeats the same failed action 3+ times without strategy change.")
-    insufficient_testing: BinaryPrediction = Field(
+        ),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="loop_behavior",
+        description="Repeats the same failed action 3+ times without strategy change.",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="insufficient_testing",
         description=(
             "Skipped reasonable verification/tests for non-trivial or risky changes (trivial edits may be acceptable). "
             "Examples: No run/validation for a new parser; no check that a migration applies cleanly; no sanity check of output."
-        )
-    )
-    insufficient_debugging: BinaryPrediction = Field(
-        description="Did not investigate or reduce failing behavior when needed to make progress. Examples: Ignores stack trace; no isolation of failure; proceeds while errors persist."
-    )
-    incomplete_implementation: BinaryPrediction = Field(description="Delivered unfinished or non-functioning work. Examples: TODO/FIXME left; stub methods; code that cannot run.")
-    file_management_errors: BinaryPrediction = Field(
-        description="Wrong paths, overwrites, misplaced/extra (unnecessary) files. Examples: writes into wrong directory; overwrites config; creates unwanted artifacts."
-    )
-    scope_creep: BinaryPrediction = Field(description="Implemented unrequested features without approval. Examples: adds a dashboard or endpoint not asked for.")
-    risky_actions_or_permission: BinaryPrediction = Field(
+        ),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="insufficient_debugging",
+        description="Did not investigate or reduce failing behavior when needed to make progress. Examples: Ignores stack trace; no isolation of failure; proceeds while errors persist.",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="incomplete_implementation",
+        description="Delivered unfinished or non-functioning work. Examples: TODO/FIXME left; stub methods; code that cannot run.",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="file_management_errors",
+        description="Wrong paths, overwrites, misplaced/extra (unnecessary) files. Examples: writes into wrong directory; overwrites config; creates unwanted artifacts.",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="scope_creep",
+        description="Implemented unrequested features without approval. Examples: adds a dashboard or endpoint not asked for.",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="risky_actions_or_permission",
         description=(
             "Risky steps without the user's explicit consent. Examples: git push to main; deleting existing files in a repo (deleting files created by the agent itself is fine); altering credentials."
-        )
-    )
-    other_agent_issue: BinaryPrediction = Field(description="Any other agent-side problem not covered above.")
-
+        ),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="other_agent_issue",
+        description="Any other agent-side problem not covered above.",
+        prediction_type=BinaryPrediction
+    ),
+    
     # --- INFRASTRUCTURE ---
-    infrastructure_external_issue: BinaryPrediction = Field(
-        description="Environment/platform limits outside agent control. Examples: provider outage; disk full on a managed runner; missing enterprise API key; network failure not caused by agent."
-    )
-    infrastructure_agent_caused_issue: BinaryPrediction = Field(
+    Feature(
+        name="infrastructure_external_issue",
+        description="Environment/platform limits outside agent control. Examples: provider outage; disk full on a managed runner; missing enterprise API key; network failure not caused by agent.",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="infrastructure_agent_caused_issue",
         description=(
             "Infrastructure faults introduced by the agent's prior actions. Examples: agent leaves server on port 8000 -> later start on 8000 fails; agent fills disk with logs -> later writes fail."
-        )
-    )
-
-    @classmethod
-    def create_annotation_request(
-        cls,
-        inputs: dict[str, Any],
-        model: str = "openai/o3-2025-04-16",
-    ) -> ChatCompletionRequest | None:
-        assert cls.USER_MESSAGE is not None, "user_message must be defined for this rubrics"
-        messages = transform_for_annotator(
-            inputs,
-            system_message=cls.SYSTEM_MESSAGE,
-            annotation_instruction_message=cls.USER_MESSAGE,
-        )
-        if messages is None:
-            return None
-        return ChatCompletionRequest(
-            model=model,
-            messages=messages,
-            temperature=0.0,
-            tools=cls.tools(),
-            tool_choice=cls.tool_choice(),
-        )
+        ),
+        prediction_type=BinaryPrediction
+    ),
+]

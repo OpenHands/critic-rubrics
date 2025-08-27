@@ -14,7 +14,8 @@ import rich
 from ah_data import TraceSegment
 from litellm import ChatCompletionRequest
 
-from critic_rubrics.rubrics import AnnotateConversationRubric, AnnotateConversationWithUserRubric
+from critic_rubrics.rubrics import AnnotateConversationRubric
+from critic_rubrics.rubrics.trajectory import get_trajectory_level_rubrics
 
 
 def open_shard_fn(path: Path):
@@ -30,7 +31,7 @@ def main():
     parser.add_argument("--pattern", type=str, default="*.jsonl.gz", help="Glob pattern to match shards")
     parser.add_argument("--max_workers", type=int, default=4, help="Number of worker threads")
     parser.add_argument("--limit", type=int, default=100, help="Max size of instances to process (for testing)")
-    parser.add_argument("--output_dir", type=str, default="./data/annotated", help="Directory to write annotated outputs")
+    parser.add_argument("--output_dir", type=str, default="./data/trace_with_rubrics", help="Directory to write annotated outputs")
     args = parser.parse_args()
 
     TRACE_DIR = Path(args.trace_dir)
@@ -53,16 +54,16 @@ def main():
                 assert "trace_segment" in data
                 trace_segment = TraceSegment.model_validate(data["trace_segment"])
                 messages: list[dict[str, Any]]
-                has_follow_up_user: bool = trace_segment.follow_up_user_message is not None
-                if has_follow_up_user:
+                has_user_follow_up: bool = trace_segment.follow_up_user_message is not None
+                
+                rubric: AnnotateConversationRubric = get_trajectory_level_rubrics(has_user_follow_up=has_user_follow_up)
+                if has_user_follow_up:
                     assert trace_segment.follow_up_user_message is not None
-                    rubric_cls = AnnotateConversationWithUserRubric
                     messages = trace_segment.trace + [trace_segment.follow_up_user_message]
                 else:
-                    rubric_cls = AnnotateConversationRubric
                     messages = trace_segment.trace
 
-                annotation_request: ChatCompletionRequest | None = rubric_cls.create_annotation_request(
+                annotation_request: ChatCompletionRequest | None = rubric.create_annotation_request(
                     inputs={
                         "messages": messages,
                         "tools": trace_segment.tools,
@@ -73,7 +74,7 @@ def main():
                     rich.print(f"[bold yellow]Skipping annotation for conversation ID:[/bold yellow] {conversation_id} | [bold yellow]Segment ID:[/bold yellow] {segment_id} (no tools)")
                     continue
 
-                output_filepath = output_dir / f"conv_{conversation_id}" / f"{segment_id}_followup_{str(has_follow_up_user).lower()}.json"
+                output_filepath = output_dir / f"conv_{conversation_id}" / f"{segment_id}_followup_{str(has_user_follow_up).lower()}.json"
                 output_filepath.parent.mkdir(parents=True, exist_ok=True)
                 with output_filepath.open("w", encoding="utf-8") as out_f:
                     json.dump(annotation_request, out_f, indent=2)
@@ -81,7 +82,7 @@ def main():
                     (
                         f"[bold blue]Conversation ID:[/bold blue] {conversation_id} | "
                         f"[bold green]Segment ID:[/bold green] {segment_id:>3} | "
-                        f"[bold yellow]Has follow-up user?[/bold yellow] {str(has_follow_up_user):<5} | "
+                        f"[bold yellow]Has follow-up user?[/bold yellow] {str(has_user_follow_up):<5} | "
                         f"[bold magenta]Tools:[/bold magenta] {len(trace_segment.tools)}"
                     )
                 )

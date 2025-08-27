@@ -1,10 +1,8 @@
 # rubrics/trajectory_with_user.py
-from typing import ClassVar, Literal
+from typing import Literal
 
-from pydantic import Field
-
+from ...feature import Feature
 from ...prediction import BinaryPrediction, ClassificationPrediction
-from .trajectory import AnnotateConversationRubric
 
 
 ANNOTATION_SYSTEM_MESSAGE = """You are an AI conversation annotator analyzing agent–user interactions to identify failure patterns. You are NOT participating in the conversation; you are an external observer evaluating what went wrong.
@@ -177,52 +175,62 @@ FollowUpTimingPrediction = ClassificationPrediction[
     ]
 ]
 
-
-class AnnotateConversationWithUserRubric(AnnotateConversationRubric):
-    """
-    Extends AnnotateConversationRubric to cover user follow-up patterns and
-    match the flat key layout in the provided tool schema.
-    Reuses the same system/user messages and create_annotation_request.
-    """
-
-    TOOL_DESCRIPTION: ClassVar[str] = "Annotate agent conversation that has user follow-up messages during or after agent work."
-    SYSTEM_MESSAGE: ClassVar[str] = ANNOTATION_SYSTEM_MESSAGE
-    USER_MESSAGE: ClassVar[str | None] = ANNOTATION_INSTRUCTION_MESSAGE
-
+FEATURES = [
     # Specific fields for user follow-up patterns
-    follow_up_timing: FollowUpTimingPrediction = Field(
+    Feature(
+        name="follow_up_timing",
         description=(
             "WHEN did the user follow up? Choose exactly one: "
             "mid_conversation: agent hadn't clearly finished; "
             "post_completion: agent signaled completion/hand-off; "
             "no_follow_up: no user message after the last agent message."
-        )
-    )
+        ),
+        prediction_type=FollowUpTimingPrediction
+    ),
 
-    clarification_or_restatement: BinaryPrediction = Field(
-        description="User clarifies/restates or corrects interpretation. Examples: 'That’s not what I meant…', 'I meant X, not Y.', 'Let me clarify…'"
-    )
-    correction: BinaryPrediction = Field(
+    Feature(
+        name="clarification_or_restatement",
+        description="User clarifies/restates or corrects interpretation. Examples: 'That’s not what I meant…', 'I meant X, not Y.', 'Let me clarify…'",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="correction",
         description=(
             "Agent broadly understood the intention but executed it incorrectly (technique/parameters/details). "
             "Examples: 'Use DESC not ASC.', 'Right table, wrong WHERE clause.', 'Same approach, wrong sort key.'"
-        )
-    )
-    direction_change: BinaryPrediction = Field(
+        ),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="direction_change",
         description=(
             "User adds new constraints/intent not previously specified; scope/goal evolves. Examples: 'Also handle time zones.', 'We actually need streaming, not batch.', 'Support Windows too.'"
-        )
+        ),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="vcs_update_requests",
+        description="User instructs forward-moving VCS updates: commit, create branch, push, open/merge PR, tag. (Revert/reset/remove ,  use removal_or_reversion_request.)",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="progress_or_scope_concern",
+        description="User flags slowness, overcomplexity, or scope bloat. Examples: 'This is taking too long.', 'Try a simpler approach.', 'This goes beyond what I asked.'",
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="frustration_or_complaint",
+        description=("User expresses dissatisfaction or irritation. Examples: 'This is wrong.', 'You’re not listening.', excessive caps or punctuation ('!!!', '???')."),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="removal_or_reversion_request",
+        description=("User asks to remove or revert code/files/changes. Examples: 'Delete the new script.', 'Undo that migration.', 'Remove these outputs.', 'git revert'."),
+        prediction_type=BinaryPrediction
+    ),
+    Feature(
+        name="other_user_issue",
+        description="Any other notable user concern not covered above.",
+        prediction_type=BinaryPrediction
     )
-    vcs_update_requests: BinaryPrediction = Field(
-        description="User instructs forward-moving VCS updates: commit, create branch, push, open/merge PR, tag. (Revert/reset/remove ,  use removal_or_reversion_request.)"
-    )
-    progress_or_scope_concern: BinaryPrediction = Field(
-        description="User flags slowness, overcomplexity, or scope bloat. Examples: 'This is taking too long.', 'Try a simpler approach.', 'This goes beyond what I asked.'"
-    )
-    frustration_or_complaint: BinaryPrediction = Field(
-        description=("User expresses dissatisfaction or irritation. Examples: 'This is wrong.', 'You’re not listening.', excessive caps or punctuation ('!!!', '???').")
-    )
-    removal_or_reversion_request: BinaryPrediction = Field(
-        description=("User asks to remove or revert code/files/changes. Examples: 'Delete the new script.', 'Undo that migration.', 'Remove these outputs.', 'git revert'.")
-    )
-    other_user_issue: BinaryPrediction = Field(description="Any other notable user concern not covered above.")
+]
