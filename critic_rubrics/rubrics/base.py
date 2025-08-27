@@ -106,19 +106,35 @@ class BaseRubrics(BaseModel):
         """
         raise NotImplementedError("Subclasses must implement response_to_annotation")
 
-    def tool_calls_to_feature_data(self, tool_calls: list[dict[str, Any]]) -> list[FeatureData]:
-        """Convert tool calls into a list of FeatureData with type checking.
+    def model_response_to_feature_data(self, response: ModelResponse) -> list[FeatureData]:
+        """Convert ModelResponse into a list of FeatureData with type checking.
         
         Args:
-            tool_calls: List of tool call dictionaries from LLM response
+            response: ModelResponse object from LLM containing tool calls
             
         Returns:
             list[FeatureData]: Parsed and validated feature data
             
         Raises:
-            ValueError: If tool calls don't match expected structure or types
+            ValueError: If response doesn't contain expected tool calls structure or types
         """
         feature_data_list = []
+        
+        # Extract tool calls from ModelResponse
+        if not response.choices or len(response.choices) == 0:
+            logger.warning("No choices found in ModelResponse")
+            return feature_data_list
+            
+        choice = response.choices[0]
+        if not hasattr(choice, 'message') or not choice.message:  # type: ignore
+            logger.warning("No message found in ModelResponse choice")
+            return feature_data_list
+            
+        message = choice.message  # type: ignore
+        tool_calls = getattr(message, 'tool_calls', None)
+        if not tool_calls:
+            logger.warning("No tool_calls found in ModelResponse message")
+            return feature_data_list
         
         for tool_call in tool_calls:
             if tool_call.get("type") != "function":

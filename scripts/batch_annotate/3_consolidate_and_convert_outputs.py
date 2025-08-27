@@ -22,6 +22,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, cast
 
+from litellm.types.utils import Choices, Message, ModelResponse
+
 from critic_rubrics.prediction import BinaryPrediction, ClassificationPrediction, TextPrediction
 from critic_rubrics.rubrics.trajectory import annotate_conversation_with_user_rubrics
 
@@ -134,8 +136,19 @@ def convert_to_feature_data(extracted_data: List[Dict[str, Any]]) -> List[Dict[s
         try:
             tool_calls = data["tool_calls"]
             
-            # Use rubrics to convert tool calls to FeatureData
-            feature_data_list = annotate_conversation_with_user_rubrics.tool_calls_to_feature_data(tool_calls)
+            # Create a ModelResponse object to match the new method signature
+            model_response = ModelResponse(
+                choices=[
+                    Choices(
+                        message=Message(
+                            tool_calls=tool_calls
+                        )
+                    )
+                ]
+            )
+            
+            # Use rubrics to convert ModelResponse to FeatureData
+            feature_data_list = annotate_conversation_with_user_rubrics.model_response_to_feature_data(model_response)
             
             if not feature_data_list:
                 print(f"  Warning: No features extracted from {data['custom_id']}")

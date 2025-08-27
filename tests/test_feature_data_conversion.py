@@ -1,12 +1,14 @@
 """
-Unit tests for FeatureData conversion from tool calls.
+Unit tests for FeatureData conversion from ModelResponse.
 
-Tests the BaseRubrics.tool_calls_to_feature_data() method using real batch output data.
+Tests the BaseRubrics.model_response_to_feature_data() method using real batch output data.
 """
 
 import json
+from typing import Any, Dict
 
 import pytest
+from litellm.types.utils import ModelResponse
 
 from critic_rubrics.feature import FeatureData
 from critic_rubrics.prediction import BinaryPrediction, ClassificationPrediction
@@ -15,10 +17,37 @@ from critic_rubrics.rubrics.trajectory.trajectory_with_user import ANNOTATION_SY
 
 
 class TestFeatureDataConversion:
-    """Test conversion of tool calls to FeatureData objects."""
+    """Test conversion of ModelResponse to FeatureData objects."""
+
+    def _create_model_response(self, tool_calls: list[Dict[str, Any]]) -> ModelResponse:
+        """Helper method to create a ModelResponse object from tool calls."""
+        # Create a mock ModelResponse structure
+        response_data = {
+            "id": "test-response",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": "test-model",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": tool_calls
+                    },
+                    "finish_reason": "tool_calls"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 50,
+                "total_tokens": 150
+            }
+        }
+        return ModelResponse(**response_data)
 
     @pytest.fixture
-    def rubrics_instance(self):
+    def rubrics_instance(self) -> AnnotateConversationRubric:
         """Create a rubrics instance for testing."""
         return AnnotateConversationRubric(
             features=FEATURES,
@@ -127,10 +156,10 @@ class TestFeatureDataConversion:
             }
         }
 
-    def test_convert_complete_tool_call(self, rubrics_instance, sample_tool_call_complete):
+    def test_convert_complete_tool_call(self, rubrics_instance: AnnotateConversationRubric, sample_tool_call_complete):
         """Test conversion of a complete tool call with all features."""
-        tool_calls = [sample_tool_call_complete]
-        feature_data_list = rubrics_instance.tool_calls_to_feature_data(tool_calls)
+        response = self._create_model_response([sample_tool_call_complete])
+        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
         
         # Should convert all 9 features from trajectory_with_user
         assert len(feature_data_list) == 9
@@ -164,7 +193,8 @@ class TestFeatureDataConversion:
     def test_convert_partial_tool_call(self, rubrics_instance, sample_tool_call_with_issues):
         """Test conversion of tool call with only some features present."""
         tool_calls = [sample_tool_call_with_issues]
-        feature_data_list = rubrics_instance.tool_calls_to_feature_data(tool_calls)
+        response = self._create_model_response(tool_calls)
+        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
         
         # Should still convert all 9 features (missing ones get default values)
         assert len(feature_data_list) == 9
@@ -179,7 +209,8 @@ class TestFeatureDataConversion:
 
     def test_convert_empty_tool_calls(self, rubrics_instance):
         """Test conversion with empty tool calls list."""
-        feature_data_list = rubrics_instance.tool_calls_to_feature_data([])
+        response = self._create_model_response([])
+        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
         assert len(feature_data_list) == 0
 
     def test_convert_invalid_json_arguments(self, rubrics_instance):
@@ -193,7 +224,8 @@ class TestFeatureDataConversion:
             }
         }
         
-        feature_data_list = rubrics_instance.tool_calls_to_feature_data([invalid_tool_call])
+        response = self._create_model_response([invalid_tool_call])
+        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
         # Should return empty list when JSON parsing fails
         assert len(feature_data_list) == 0
 
@@ -208,7 +240,8 @@ class TestFeatureDataConversion:
             }
         }
         
-        feature_data_list = rubrics_instance.tool_calls_to_feature_data([wrong_name_tool_call])
+        response = self._create_model_response([wrong_name_tool_call])
+        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
         # Should return empty list when function name doesn't match
         assert len(feature_data_list) == 0
 
@@ -229,7 +262,8 @@ class TestFeatureDataConversion:
             }
         }
         
-        feature_data_list = rubrics_instance.tool_calls_to_feature_data([minimal_tool_call])
+        response = self._create_model_response([minimal_tool_call])
+        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
         
         # Should only have features that were successfully parsed (2 in this case)
         # Missing features are skipped due to validation errors
@@ -254,7 +288,8 @@ class TestFeatureDataConversion:
             }
         }
         
-        feature_data_list = rubrics_instance.tool_calls_to_feature_data([invalid_classification_tool_call])
+        response = self._create_model_response([invalid_classification_tool_call])
+        feature_data_list = rubrics_instance.model_response_to_feature_data(response)
         
         # Should still return features, but the invalid one should be skipped or have default value
         # The follow_up_timing feature should not be in the results due to validation failure
