@@ -147,7 +147,7 @@ def main():
                             progress.update(task, description=f"[red]{msg}")
                             progress_log.append(f"[red]{msg}[/red]")
                         else:
-                            output_file = output_dir / f"{batch_name}_results.jsonl"
+                            output_file = output_dir / f"{batch_name}_outputs.jsonl"
                             with output_file.open("w") as f:
                                 for result in results:
                                     f.write(json.dumps(result) + "\n")
