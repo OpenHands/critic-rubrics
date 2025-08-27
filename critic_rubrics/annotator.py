@@ -130,7 +130,6 @@ class Annotator:
             if "metadata" in request:
                 custom_id = request.get("metadata", {}).get("custom_request_id", custom_id)
                 request.pop("metadata")  # remove so it don't cause issues with LLM completions
-            breakpoint()
 
             line_obj = {
                 "custom_id": custom_id,
@@ -171,7 +170,6 @@ class Annotator:
         # Get batch status
         batch = litellm.retrieve_batch(batch_id=batch_id, custom_llm_provider=custom_llm_provider, **kwargs)
         batch = cast(LiteLLMBatch, batch)
-
         status = {
             "batch_id": batch.id,
             "status": batch.status,

@@ -61,6 +61,7 @@ def main():
         "--base-url",
         type=str,
         help="LiteLLM proxy base URL",
+        default="https://llm-proxy.eval.all-hands.dev",
     )
     parser.add_argument(
         "--api-key",
@@ -77,14 +78,8 @@ def main():
     parser.add_argument(
         "--poll-interval",
         type=int,
-        default=30,
-        help="Polling interval in seconds (default: 30)",
-    )
-    parser.add_argument(
-        "--max-wait",
-        type=int,
-        default=3600,
-        help="Maximum wait time in seconds (default: 3600 = 1 hour)",
+        default=2,
+        help="Polling interval in seconds (default: 2)",
     )
 
     args = parser.parse_args()
@@ -114,8 +109,6 @@ def main():
     # Process batches
     rich.print(f"[bold green]Checking status of {len(batch_ids)} batch(es)...[/bold green]")
 
-    start_time = time.time()
-    max_wait = args.max_wait if args.poll else 0
     poll_interval = args.poll_interval
 
     pending_batches = batch_ids.copy()
@@ -127,7 +120,7 @@ def main():
         TextColumn("[progress.description]{task.description}"),
         TimeElapsedColumn(),
     ) as progress:
-        while pending_batches and (time.time() - start_time) < max_wait:
+        while pending_batches:
             # Check status of all pending batches
             still_pending = []
 
@@ -169,10 +162,9 @@ def main():
             pending_batches = still_pending
 
             if pending_batches and args.poll:
-                if (time.time() - start_time) + poll_interval < max_wait:
-                    wait_task = progress.add_task(f"Waiting {poll_interval}s before next check...", total=None)
-                    time.sleep(poll_interval)
-                    progress.remove_task(wait_task)
+                wait_task = progress.add_task(f"Waiting {poll_interval}s before next check...", total=None)
+                time.sleep(poll_interval)
+                progress.remove_task(wait_task)
             else:
                 break
 
