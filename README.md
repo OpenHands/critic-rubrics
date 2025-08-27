@@ -1,120 +1,234 @@
 # Critic Rubrics
 
-Building blocks for LLM “rubric” tool-schemas and typed predictions.
+Type-safe LLM evaluation framework for structured prediction and analysis.
 
-This repo currently provides:
-- Typed prediction models (binary, text, single-label classification)
-- A BaseRubrics class that turns Pydantic fields into a Litellm/OpenAI tool schema
+## Core Data Structures
 
-What it does NOT provide yet:
-- Predefined rubrics (e.g., solvability/trajectory)
-- Annotator helpers/factories
+### Prediction Types
 
-Some legacy tests reference trajectory-style rubrics for schema compatibility, but the concrete classes are not shipped yet.
-
-## Install
-
-Python 3.12+ is required.
-
-- From source (editable):
-```bash
-pip install -e .
-```
-This installs runtime deps defined in pyproject.toml:
-- pydantic (v2)
-- litellm
-
-For development:
-```bash
-uv sync --group dev
-```
-This sets up ruff, pyright, pytest, and pre-commit.
-
-## Quick start: define your own rubric
+All predictions inherit from `BasePrediction` and define how data is flattened into OpenAI tool schemas:
 
 ```python
+from critic_rubrics import BinaryPrediction, TextPrediction, ClassificationPrediction
 from typing import Literal
-from pydantic import Field
-from critic_rubrics import BaseRubrics, BinaryPrediction, ClassificationPrediction, TextPrediction
 
-class SimpleConversationRubric(BaseRubrics):
-    TOOL_NAME = "annotate_conversation"
-    TOOL_DESCRIPTION = "Annotate an agent conversation after the work is done."
+# Boolean detection with evidence
+class BinaryPrediction(BasePrediction):
+    detected: bool          # Flattened as: <name>_detected
+    rationale: str         # Flattened as: <name>_rationale
 
-    misunderstood_intention: BinaryPrediction = Field(
-        description="Agent misunderstood the user's goal/intent."
-    )
+# Free text output  
+class TextPrediction(BasePrediction):
+    text: str              # Flattened as: <name>_text
 
-    outcome: ClassificationPrediction[Literal["pass", "fail"]] = Field(
-        description="High-level outcome classification."
-    )
-
-    summary: TextPrediction = Field(
-        description="Short summary of the session."
-    )
-
-r = SimpleConversationRubric()
-# Tool choice and tool schema for use with litellm/openai-compatible chat APIs
-print(r.tool_choice)
-print(r.tools)
+# Single-label classification with evidence
+class ClassificationPrediction[L](BasePrediction):
+    label: L               # Flattened as: <name> (with enum constraint)
+    rationale: str         # Flattened as: <name>_rationale
 ```
 
-You are responsible for constructing messages and parsing tool outputs. BaseRubrics focuses on generating a consistent tool schema from typed fields.
-
-## How it works
-
-- Each Pydantic field of a rubric must be a subclass of BasePrediction. The provided ones are:
-  - BinaryPrediction: exposes `<name>_detected: bool` and `<name>_rationale: str`
-  - TextPrediction: exposes `<name>_text: str`
-  - ClassificationPrediction[Literal[...]]: exposes `<name>: str` (+ optional enum) and `<name>_rationale: str`
-- BaseRubrics.tools flattens all fields into a single function tool with required properties by default (REQUIRED_ALL=True).
-- You must implement system_message (and optionally user_message) in your rubric subclass. create_annotation_request is provided as an abstract hook if you want to standardize message formatting.
-
-## Minimal example with litellm
+### Feature Definition
 
 ```python
+from critic_rubrics import Feature
+
+feature = Feature(
+    name="task_complexity",
+    description="Assess the complexity level of the given task",
+    prediction_type=ClassificationPrediction[Literal["simple", "moderate", "complex"]]
+)
+```
+
+### Feature Data
+
+```python
+from critic_rubrics import FeatureData
+
+# Combines feature definition with actual prediction data
+feature_data = FeatureData(
+    feature=feature,
+    prediction=ClassificationPrediction(label="complex", rationale="Multiple dependencies")
+)
+```
+
+## Core APIs
+
+### Rubric Definition
+
+```python
+from critic_rubrics import BaseRubrics, Feature, BinaryPrediction, ClassificationPrediction
+from typing import Literal, Any
+from litellm import ChatCompletionRequest
+
+class TaskAnalysisRubric(BaseRubrics):
+    def __init__(self):
+        super().__init__(
+            tool_name="analyze_task",
+            tool_description="Analyze task characteristics and complexity",
+            features=[
+                Feature(
+                    name="requires_clarification",
+                    description="Task requires additional clarification from user",
+                    prediction_type=BinaryPrediction
+                ),
+                Feature(
+                    name="complexity_level", 
+                    description="Overall complexity assessment",
+                    prediction_type=ClassificationPrediction[Literal["simple", "moderate", "complex"]]
+                )
+            ],
+            system_message="You are an expert task analyzer.",
+            user_message="Analyze the following task:"
+        )
+    
+    def create_annotation_request(self, inputs: dict[str, Any], model: str = "openai/o3-2025-04-16") -> ChatCompletionRequest:
+        return {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": self.system_message},
+                {"role": "user", "content": f"{self.user_message}\n\n{inputs['task_description']}"}
+            ],
+            "tools": self.tools,
+            "tool_choice": self.tool_choice
+        }
+```
+
+### Tool Schema Generation
+
+```python
+rubric = TaskAnalysisRubric()
+
+# OpenAI-compatible tool schema
+print(rubric.tools)
+# [{"type": "function", "function": {"name": "analyze_task", "parameters": {...}}}]
+
+print(rubric.tool_choice) 
+# {"type": "function", "function": {"name": "analyze_task"}}
+```
+
+### LLM Integration
+
+```python
+from critic_rubrics import Annotator
 from litellm import completion
 
-messages = [
-    {"role": "system", "content": "You are a careful annotator."},
-    {"role": "user", "content": "<paste conversation here>"},
-]
+# Single request
+rubric = TaskAnalysisRubric()
+request = rubric.create_annotation_request({"task_description": "Build a web scraper"})
+response = Annotator.annotate(request, model="openai/gpt-4")
 
-rubric = SimpleConversationRubric()
-resp = completion(
-    model="openai/o4-mini",  # any litellm-supported provider
-    messages=messages,
-    tools=rubric.tools,
-    tool_choice=rubric.tool_choice,
+# Extract structured data
+tool_call = response.choices[0].message.tool_calls[0]
+feature_data_list = rubric.tool_call_to_feature_data(tool_call)
+
+for feature_data in feature_data_list:
+    print(f"{feature_data.feature.name}: {feature_data.prediction.to_dict()}")
+```
+
+### Batch Processing
+
+```python
+# Send batch requests
+requests = [rubric.create_annotation_request({"task_description": task}) for task in tasks]
+batch_ids = Annotator.batch_annotate(
+    requests, 
+    output_dir="./batch_results",
+    custom_llm_provider="openai",
+    model="openai/gpt-4"
 )
 
-# Parse resp.choices[0].message.tool_calls[0].function.arguments (JSON)
-# back into your own result object if desired.
+# Retrieve results
+for batch_id in batch_ids:
+    status, results = Annotator.get_batch_results(batch_id, custom_llm_provider="openai")
+    if status["status"] == "completed":
+        for result in results:
+            # Process batch result
+            pass
 ```
 
-## Project layout (current)
+## Data Flow
 
 ```
-critic_rubrics/
-├── __init__.py
-├── prediction.py
-└── rubrics/
-    ├── __init__.py  # exports BaseRubrics; references trajectory types that are not yet implemented
-    └── base.py      # BaseRubrics implementation
+1. Define Rubric → 2. Generate Tool Schema → 3. Send to LLM → 4. Parse Response → 5. Typed FeatureData
+     ↓                      ↓                      ↓                ↓                    ↓
+BaseRubrics.tools    ChatCompletionRequest    ModelResponse    tool_call_to_feature_data()    List[FeatureData]
 ```
 
-Note: tests include legacy-compat checks for trajectory rubrics that aren't present in the package yet.
+## Key Methods
 
-## Contributing
+### Prediction Methods
+- `to_tool_properties(field_name, field_description, rationale_description)` → `dict[str, Any]`
+- `from_tool_args(feature_name, tool_args)` → `BasePrediction`
+- `to_dict()` → `dict[str, Any]`
 
-- Dev environment: `uv sync --group dev`
-- Run formatting/lint/type-check via pre-commit:
-  - `uv run pre-commit run --all-files`
-- Run tests:
-  - `uv run pytest -vv` 
+### Rubric Methods  
+- `tools` → `list[ChatCompletionToolParam]`
+- `tool_choice` → `ChatCompletionToolChoiceObjectParam`
+- `create_annotation_request(inputs, model)` → `ChatCompletionRequest`
+- `tool_call_to_feature_data(tool_call)` → `list[FeatureData]`
 
-## Roadmap
+### Annotator Methods
+- `annotate(request, **kwargs)` → `ModelResponse`
+- `batch_annotate(requests, output_dir, custom_llm_provider, **kwargs)` → `list[str]`
+- `get_batch_results(batch_id, custom_llm_provider, **kwargs)` → `tuple[dict, list[dict]]`
 
-- Ship concrete solvability/trajectory rubrics built on BaseRubrics
-- Provide parsing helpers to convert tool-call JSON back into typed prediction results
-- Optional annotator utilities for common providers
+## Installation
+
+```bash
+# Runtime dependencies
+pip install -e .
+
+# Development setup  
+uv sync --group dev
+```
+
+## Requirements
+
+- Python 3.12+
+- pydantic >= 2.11.7
+- litellm >= 1.76.0
+
+## Example: Complete Workflow
+
+```python
+from critic_rubrics import BaseRubrics, Feature, BinaryPrediction, Annotator
+from typing import Any
+from litellm import ChatCompletionRequest
+
+# 1. Define rubric
+class CodeReviewRubric(BaseRubrics):
+    def __init__(self):
+        super().__init__(
+            tool_name="review_code",
+            tool_description="Review code for potential issues",
+            features=[
+                Feature("has_bugs", "Code contains potential bugs", BinaryPrediction),
+                Feature("needs_refactor", "Code needs refactoring", BinaryPrediction)
+            ],
+            system_message="You are a senior code reviewer."
+        )
+    
+    def create_annotation_request(self, inputs: dict[str, Any], model: str = "openai/gpt-4") -> ChatCompletionRequest:
+        return {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": self.system_message},
+                {"role": "user", "content": f"Review this code:\n\n{inputs['code']}"}
+            ],
+            "tools": self.tools,
+            "tool_choice": self.tool_choice
+        }
+
+# 2. Use rubric
+rubric = CodeReviewRubric()
+request = rubric.create_annotation_request({"code": "def add(a, b): return a + b"})
+response = Annotator.annotate(request)
+
+# 3. Extract results
+tool_call = response.choices[0].message.tool_calls[0]
+features = rubric.tool_call_to_feature_data(tool_call)
+
+for feature_data in features:
+    pred = feature_data.prediction
+    print(f"{feature_data.feature.name}: {pred.detected} - {pred.rationale}")
+```
