@@ -111,6 +111,7 @@ class Annotator:
                     "input_file_id": file_obj.id,
                     "created_at": time.time(),
                     "request_count": len(current_batch),
+                    "custom_llm_provider": custom_llm_provider,
                 }
 
                 batch_file = output_dir / f"batch_{batch_num:06d}.json"
