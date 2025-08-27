@@ -1,3 +1,4 @@
+import json
 import logging
 from abc import abstractmethod
 from typing import Any
@@ -6,7 +7,7 @@ from litellm import ChatCompletionRequest, ChatCompletionToolChoiceObjectParam, 
 from litellm.types.utils import ModelResponse
 from pydantic import BaseModel
 
-from critic_rubrics.feature import Feature
+from critic_rubrics.feature import Feature, FeatureData
 from critic_rubrics.prediction import BasePrediction
 
 
@@ -104,3 +105,51 @@ class BaseRubrics(BaseModel):
             list[Feature]: The structured annotation.
         """
         raise NotImplementedError("Subclasses must implement response_to_annotation")
+
+    def tool_calls_to_feature_data(self, tool_calls: list[dict[str, Any]]) -> list[FeatureData]:
+        """Convert tool calls into a list of FeatureData with type checking.
+        
+        Args:
+            tool_calls: List of tool call dictionaries from LLM response
+            
+        Returns:
+            list[FeatureData]: Parsed and validated feature data
+            
+        Raises:
+            ValueError: If tool calls don't match expected structure or types
+        """
+        feature_data_list = []
+        
+        for tool_call in tool_calls:
+            if tool_call.get("type") != "function":
+                continue
+                
+            function_data = tool_call.get("function", {})
+            function_name = function_data.get("name")
+            
+            # Check if this tool call matches our tool name
+            if function_name != self.tool_name:
+                logger.warning(f"Skipping tool call with unexpected name: {function_name}")
+                continue
+                
+            # Parse the arguments
+            arguments_str = function_data.get("arguments", "{}")
+            try:
+                if isinstance(arguments_str, str):
+                    tool_args = json.loads(arguments_str)
+                else:
+                    tool_args = arguments_str
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse tool call arguments: {e}")
+                continue
+                
+            # Convert each feature
+            for feature in self.features:
+                try:
+                    feature_data = FeatureData.from_tool_args(feature, tool_args)
+                    feature_data_list.append(feature_data)
+                except ValueError as e:
+                    logger.warning(f"Failed to parse feature '{feature.name}': {e}")
+                    # Continue with other features rather than failing completely
+                    
+        return feature_data_list
