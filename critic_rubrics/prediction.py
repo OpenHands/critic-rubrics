@@ -32,16 +32,8 @@ class BasePrediction(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         """Convert prediction to serializable dict with type information."""
         data = self.model_dump()
-        data["type"] = self._get_type_name()
+        data["type"] = self.__class__.__name__
         return data
-    
-    def _get_type_name(self) -> str:
-        """Get the type name for this prediction class."""
-        # Convert "BinaryPrediction" -> "binary", "TextPrediction" -> "text", etc.
-        class_name = self.__class__.__name__
-        class_name = class_name.removesuffix("Prediction").lower()
-        return class_name
-
 
 
 class BinaryPrediction(BasePrediction):
