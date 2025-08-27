@@ -19,7 +19,7 @@ class BinaryPrediction(BasePrediction):
     """Boolean detection + rationale (flattened as <name>_detected / <name>_rationale)."""
 
     detected: bool = Field(description="Set TRUE only with specific evidence.")
-    rationale: str = Field(description="Brief evidence/quote (≤25 words) explaining why.")
+    rationale: str = Field(description="Brief evidence/quote (<=25 words) explaining why.")
 
     @classmethod
     def to_tool_properties(
@@ -58,7 +58,7 @@ class ClassificationPrediction(BasePrediction, Generic[L]):
     """Single-label classification + rationale (flattened as <name>_label / <name>_rationale)."""
 
     label: L = Field(description="Choose one label from the allowed set.")
-    rationale: str = Field(description="Brief evidence/quote (≤25 words) explaining why.")
+    rationale: str = Field(description="Brief evidence/quote (<=25 words) explaining why.")
 
     @classmethod
     def to_tool_properties(

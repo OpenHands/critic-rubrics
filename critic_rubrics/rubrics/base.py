@@ -19,7 +19,7 @@ class BaseRubrics(BaseModel):
     system_message: str
     user_message: str | None = None  # Optional
     required_all: bool = True
-    rationale_description: str = "Brief evidence/quote (≤25 words) explaining why."
+    rationale_description: str = "Brief evidence/quote (<=25 words) explaining why."
 
     # ============================================================
     # LLM tool schema generation

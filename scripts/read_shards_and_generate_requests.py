@@ -53,19 +53,19 @@ def main():
                 assert "trace_segment" in data
                 trace_segment = data["trace_segment"]
                 messages: list[dict[str, Any]]
-                has_user_follow_up: bool = trace_segment.follow_up_user_message is not None
+                has_user_follow_up: bool = trace_segment["follow_up_user_message"] is not None
                 
                 rubric: AnnotateConversationRubric = get_trajectory_level_rubrics(has_user_follow_up=has_user_follow_up)
                 if has_user_follow_up:
-                    assert trace_segment.follow_up_user_message is not None
-                    messages = trace_segment.trace + [trace_segment.follow_up_user_message]
+                    assert trace_segment["follow_up_user_message"] is not None
+                    messages = trace_segment["trace"] + [trace_segment["follow_up_user_message"]]
                 else:
-                    messages = trace_segment.trace
+                    messages = trace_segment["trace"]
 
                 annotation_request: ChatCompletionRequest | None = rubric.create_annotation_request(
                     inputs={
                         "messages": messages,
-                        "tools": trace_segment.tools,
+                        "tools": trace_segment["tools"],
                     }
                 )
 
@@ -82,7 +82,7 @@ def main():
                         f"[bold blue]Conversation ID:[/bold blue] {conversation_id} | "
                         f"[bold green]Segment ID:[/bold green] {segment_id:>3} | "
                         f"[bold yellow]Has follow-up user?[/bold yellow] {str(has_user_follow_up):<5} | "
-                        f"[bold magenta]Tools:[/bold magenta] {len(trace_segment.tools)}"
+                        f"[bold magenta]Tools:[/bold magenta] {len(trace_segment['tools'])}"
                     )
                 )
                 # rich.print(annotation_request)

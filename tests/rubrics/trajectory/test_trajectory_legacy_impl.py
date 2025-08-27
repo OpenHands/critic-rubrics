@@ -8,7 +8,7 @@ NON_USER_PROPERTIES_TO_EXPECT = {
         "type": "boolean",
         "description": "Agent misunderstood the user’s goal/intent. Examples: User asked for a summary; agent produced a rewrite; user wanted high-level bullets; agent delivered full code.",
     },
-    "misunderstood_intention_rationale": {"type": "string", "description": "Quote evidence concisely (≤25 words) and explain in a sentence."},
+    "misunderstood_intention_rationale": {"type": "string", "description": "Quote evidence concisely (<=25 words) and explain in a sentence."},
     "did_not_follow_instruction_detected": {
         "type": "boolean",
         "description": "Agent ignored or failed to comply with explicit instructions/system constraints. Examples: User: “Do NOT push to main.” Agent pushes; System says not to create a PR unless the user asks and the user didn’t ask; agent creates a PR; user asked for bullet points only, agent gives long prose.",
@@ -95,7 +95,7 @@ def test_annotate_conversation_rubric_schema_consistency():
             ann.to_tool_properties(
                 field_name=feature.name,
                 field_description=field_desc,
-                rationale_description="Brief evidence/quote (≤25 words) explaining why.",
+                rationale_description="Brief evidence/quote (<=25 words) explaining why.",
             )
         )
 

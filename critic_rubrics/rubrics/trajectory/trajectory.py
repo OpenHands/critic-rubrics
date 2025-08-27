@@ -44,7 +44,7 @@ CONVERSATION STRUCTURE
 ========================
 CONTEXT SOURCES
 ========================
-Use all evidence: screenshots, code, logs, specs, file trees, error messages, prompts/system messages, and tool traces. Prefer short verbatim quotes (≤25 words) when supporting a claim.
+Use all evidence: screenshots, code, logs, specs, file trees, error messages, prompts/system messages, and tool traces. Prefer short verbatim quotes (<=25 words) when supporting a claim.
 
 ========================
 DETECTION FRAMEWORK
@@ -152,7 +152,7 @@ FEATURES = [
     Feature(
         name="task_type",
         description=(
-            "Classify the type of task into exactly one category."
+            "Classify the type of task into exactly one category. "
             "Choose from: Fix Bugs, Implement Features, Create Programs from Scratch, "
             "Fix Failing Continuous Integration, Fix Merge Conflicts, Write Documentation, "
             "Perform Deployments, Perform Data Analysis."

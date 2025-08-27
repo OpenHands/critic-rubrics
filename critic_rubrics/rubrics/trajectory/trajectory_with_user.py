@@ -21,7 +21,7 @@ In your timing rationale, note what the agent was doing when the user intervened
 ========================
 CONTEXT SOURCES
 ========================
-Use all evidence: screenshots, code, logs, specs, file trees, error messages, prompts/system messages, and tool traces. Prefer short verbatim quotes (≤25 words) when supporting a claim.
+Use all evidence: screenshots, code, logs, specs, file trees, error messages, prompts/system messages, and tool traces. Prefer short verbatim quotes (<=25 words) when supporting a claim.
 
 ========================
 DETECTION FRAMEWORK
