@@ -3,6 +3,10 @@ from typing import Any, Generic, Literal, TypeVar, get_args, get_origin
 from pydantic import BaseModel, Field
 
 
+class PredictionMissingFieldError(Exception):
+    """Raised when a required field is missing in tool arguments."""
+    pass
+
 class BasePrediction(BaseModel):
     
     @classmethod
@@ -66,7 +70,7 @@ class BinaryPrediction(BasePrediction):
     ) -> "BinaryPrediction":
         detected = tool_args.get(f"{feature_name}_detected")
         if detected is None:
-            raise ValueError(f"Missing required field '{feature_name}_detected'")
+            raise PredictionMissingFieldError(f"Missing required field '{feature_name}_detected'")
         rationale = tool_args.get(f"{feature_name}_rationale", "")
         return cls(
             detected=detected,
@@ -98,7 +102,7 @@ class TextPrediction(BasePrediction):
     ) -> "TextPrediction":
         text = tool_args.get(f"{feature_name}_text")
         if text is None:
-            raise ValueError(f"Missing required field '{feature_name}_text'")
+            raise PredictionMissingFieldError(f"Missing required field '{feature_name}_text'")
         return cls(
             text=text,
         )
@@ -145,7 +149,7 @@ class ClassificationPrediction(BasePrediction, Generic[L]):
     ) -> "ClassificationPrediction":
         label = tool_args.get(feature_name)
         if label is None:
-            raise ValueError(f"Missing required field '{feature_name}'")
+            raise PredictionMissingFieldError(f"Missing required field '{feature_name}'")
         rationale = tool_args.get(f"{feature_name}_rationale", "")
         return cls(
             label=label,

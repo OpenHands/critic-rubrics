@@ -126,8 +126,7 @@ class BaseRubrics(BaseModel):
             return feature_data_list
         
         for tool_call in tool_calls:
-            if tool_call.get("type") != "function":
-                continue
+            assert tool_call.get("type") == "function"
                 
             function_data = tool_call.get("function", {})
             function_name = function_data.get("name")
@@ -150,10 +149,7 @@ class BaseRubrics(BaseModel):
                 
             # Convert each feature
             for feature in self.features:
-                try:
-                    feature_data = FeatureData.from_tool_args(feature, tool_args)
-                    feature_data_list.append(feature_data)
-                except ValueError as e:
-                    logger.warning(f"Failed to parse feature '{feature.name}': {e}.\nWe got: {json.dumps(tool_args, indent=2)}")
+                feature_data = FeatureData.from_tool_args(feature, tool_args)
+                feature_data_list.append(feature_data)
 
         return feature_data_list

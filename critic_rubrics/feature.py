@@ -30,13 +30,6 @@ class FeatureData(BaseModel):
         Raises:
             ValueError: If tool_args don't match the expected prediction type structure
         """
-        prediction_type = feature.prediction_type
-        try:
-            prediction = prediction_type.from_tool_args(feature.name, tool_args)
-        except Exception as e:
-            raise ValueError(
-                f"Failed to create {prediction_type.__name__} for feature '{feature.name}': {e}"
-            ) from e
-            
+        prediction = feature.prediction_type.from_tool_args(feature.name, tool_args)
         return cls(feature=feature, prediction=prediction)
     
