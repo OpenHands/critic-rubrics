@@ -11,10 +11,9 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Generator, Iterator
 
-from litellm.types.utils import Choices, Message, ModelResponse
+from litellm.types.utils import ModelResponse
 
-from critic_rubrics.prediction import BinaryPrediction, ClassificationPrediction, TextPrediction
-from critic_rubrics.rubrics.trajectory import annotate_conversation_with_user_rubrics
+from critic_rubrics.rubrics.trajectory import annotate_conversation_rubrics, annotate_conversation_with_user_rubrics
 
 
 def load_batch_data(batch_folder: Path) -> Generator[Dict[str, Any], None, None]:
@@ -42,18 +41,10 @@ def load_batch_data(batch_folder: Path) -> Generator[Dict[str, Any], None, None]
                         continue
                     
                     body = response.get("body", {})
-                    choices = body.get("choices", [])
-                    if not choices:
-                        continue
-                    
-                    tool_calls = choices[0].get("message", {}).get("tool_calls", [])
-                    if not tool_calls:
-                        continue
-                    
                     yield {
                         "batch_id": output.get("id", "unknown"),
                         "custom_id": output.get("custom_id", "unknown"),
-                        "tool_calls": tool_calls,
+                        "response": body,
                         "usage": body.get("usage", {}),
                         "model": body.get("model", "unknown")
                     }
@@ -61,66 +52,39 @@ def load_batch_data(batch_folder: Path) -> Generator[Dict[str, Any], None, None]
                 except json.JSONDecodeError:
                     continue
 
-
-def serialize_prediction(prediction: Any) -> Dict[str, Any]:
-    """Convert prediction to dict using proper type checking."""
-    if isinstance(prediction, BinaryPrediction):
-        return {
-            "type": "binary",
-            "detected": prediction.detected,
-            "rationale": prediction.rationale
-        }
-    elif isinstance(prediction, ClassificationPrediction):
-        return {
-            "type": "classification", 
-            "label": prediction.label,
-            "rationale": prediction.rationale
-        }
-    elif isinstance(prediction, TextPrediction):
-        return {
-            "type": "text",
-            "text": prediction.text
-        }
-    else:
-        return {
-            "type": "unknown",
-            "value": str(prediction),
-            "rationale": getattr(prediction, 'rationale', '')
-        }
-
-
 def process_batch_data(batch_folder: Path) -> Iterator[Dict[str, Any]]:
     """Process batch data and convert to feature data."""
     for data in load_batch_data(batch_folder):
-        try:
-            # Convert tool calls to ModelResponse
-            model_response = ModelResponse(
-                choices=[Choices(message=Message(tool_calls=data["tool_calls"]))]
-            )
-            
-            # Extract features using rubrics
-            feature_data_list = annotate_conversation_with_user_rubrics.model_response_to_feature_data(model_response)
-            if not feature_data_list:
-                continue
-            
-            # Convert to serializable format
-            features = {
-                fd.feature.name: serialize_prediction(fd.prediction)
-                for fd in feature_data_list
-            }
-            
-            yield {
-                "batch_id": data["batch_id"],
-                "custom_id": data["custom_id"],
-                "model": data["model"],
-                "usage": data["usage"],
-                "features": features,
-                "feature_count": len(features)
-            }
-            
-        except Exception:
-            continue
+        model_response = ModelResponse(**data["response"])
+        assert model_response.choices is not None and len(model_response.choices) > 0
+        tool_calls = model_response.choices[0].message.tool_calls  # type: ignore
+        assert tool_calls is not None and len(tool_calls) == 1
+        tool_call = tool_calls[0]
 
+        if annotate_conversation_rubrics.tool_call_match_rubrics(tool_call):
+            feature_data_list = annotate_conversation_rubrics.tool_call_to_feature_data(tool_call)    
+        elif annotate_conversation_with_user_rubrics.tool_call_match_rubrics(tool_call):
+            feature_data_list = annotate_conversation_with_user_rubrics.tool_call_to_feature_data(tool_call)
+        else:
+            raise ValueError("Tool call does not match any known rubric structure")
+
+        if not feature_data_list:
+            print(f"No feature data extracted for batch_id {data['batch_id']}")
+            continue
+        features = {
+            fd.feature.name: fd.prediction.to_dict()
+            for fd in feature_data_list
+        }
+        
+        yield {
+            "batch_id": data["batch_id"],
+            "custom_id": data["custom_id"],
+            "model": data["model"],
+            "usage": data["usage"],
+            "features": features,
+            "feature_count": len(features)
+        }
+            
 
 def main():
     """Main function."""

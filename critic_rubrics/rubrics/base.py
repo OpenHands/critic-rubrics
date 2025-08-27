@@ -4,7 +4,7 @@ from abc import abstractmethod
 from typing import Any
 
 from litellm import ChatCompletionRequest, ChatCompletionToolChoiceObjectParam, ChatCompletionToolParam
-from litellm.types.utils import ModelResponse
+from litellm.types.utils import ChatCompletionMessageToolCall
 from pydantic import BaseModel
 
 from critic_rubrics.feature import Feature, FeatureData
@@ -12,6 +12,23 @@ from critic_rubrics.prediction import BasePrediction
 
 
 logger = logging.getLogger(__name__)
+
+def extract_tool_args(tool_call: ChatCompletionMessageToolCall) -> dict[str, Any]:
+    assert tool_call.get("type") == "function"
+    function_data = tool_call.get("function", {}) or {}
+
+    # Parse the arguments
+    arguments_str = function_data.get("arguments", "{}")
+    try:
+        if isinstance(arguments_str, str):
+            return json.loads(arguments_str)
+        elif isinstance(arguments_str, dict):
+            return arguments_str
+        raise ValueError("Unexpected arguments format")
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse tool call arguments: {e}")
+        return {}
+
 
 class BaseRubrics(BaseModel):
     tool_name: str
@@ -95,7 +112,7 @@ class BaseRubrics(BaseModel):
         """
         raise NotImplementedError("Subclasses must implement create_annotation_request")
 
-    def model_response_to_feature_data(self, response: ModelResponse) -> list[FeatureData]:
+    def tool_call_to_feature_data(self, tool_call: ChatCompletionMessageToolCall) -> list[FeatureData]:
         """Convert ModelResponse into a list of FeatureData with type checking.
         
         Args:
@@ -109,47 +126,29 @@ class BaseRubrics(BaseModel):
         """
         feature_data_list = []
         
-        # Extract tool calls from ModelResponse
-        if not response.choices or len(response.choices) == 0:
-            logger.warning("No choices found in ModelResponse")
-            return feature_data_list
-            
-        choice = response.choices[0]
-        if not hasattr(choice, 'message') or not choice.message:  # type: ignore
-            logger.warning("No message found in ModelResponse choice")
-            return feature_data_list
-            
-        message = choice.message  # type: ignore
-        tool_calls = getattr(message, 'tool_calls', None)
-        if not tool_calls:
-            logger.warning("No tool_calls found in ModelResponse message")
-            return feature_data_list
-        
-        for tool_call in tool_calls:
-            assert tool_call.get("type") == "function"
-                
-            function_data = tool_call.get("function", {})
-            function_name = function_data.get("name")
-            
-            # Check if this tool call matches our tool name
-            if function_name != self.tool_name:
-                logger.warning(f"Skipping tool call with unexpected name: {function_name}")
-                continue
-                
-            # Parse the arguments
-            arguments_str = function_data.get("arguments", "{}")
-            try:
-                if isinstance(arguments_str, str):
-                    tool_args = json.loads(arguments_str)
-                else:
-                    tool_args = arguments_str
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse tool call arguments: {e}")
-                continue
-                
-            # Convert each feature
-            for feature in self.features:
-                feature_data = FeatureData.from_tool_args(feature, tool_args)
-                feature_data_list.append(feature_data)
+        assert tool_call.get("type") == "function"
+        function_data = tool_call.get("function", {}) or {}
+        function_name = function_data.get("name")
+        if function_name != self.tool_name:
+            raise ValueError(f"Tool call with unexpected name: {function_name}")
+        tool_args = extract_tool_args(tool_call)
+
+        # Convert each feature
+        for feature in self.features:
+            feature_data = FeatureData.from_tool_args(feature, tool_args)
+            feature_data_list.append(feature_data)
 
         return feature_data_list
+
+    def tool_call_match_rubrics(self, tool_call: ChatCompletionMessageToolCall) -> bool:
+        """Check if the tool call matches the expected rubric structure."""
+        assert tool_call.get("type") == "function"
+        function_data = tool_call.get("function", {}) or {}
+        function_name = function_data.get("name")
+        if function_name != self.tool_name:
+            return False
+        tool_args = extract_tool_args(tool_call)
+        tool_args_set = set(tool_args.keys())
+        current_arg_sets = set(self.tools[0]['function']['parameters']["properties"].keys()) # type: ignore
+
+        return tool_args_set == current_arg_sets
