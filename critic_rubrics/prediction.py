@@ -3,7 +3,12 @@ from typing import Any, Generic, Literal, TypeVar, get_args, get_origin
 from pydantic import BaseModel, Field
 
 
+class PredictionMissingFieldError(Exception):
+    """Raised when a required field is missing in tool arguments."""
+    pass
+
 class BasePrediction(BaseModel):
+    
     @classmethod
     def to_tool_properties(
         cls,
@@ -13,13 +18,29 @@ class BasePrediction(BaseModel):
     ) -> dict[str, Any]:
         """Return flattened tool 'properties' entries for this field."""
         raise NotImplementedError
+    
+
+    @classmethod
+    def from_tool_args(
+        cls,
+        feature_name: str,
+        tool_args: dict[str, Any]
+    ) -> "BasePrediction":
+        """Create a prediction instance from tool arguments."""
+        raise NotImplementedError
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert prediction to serializable dict with type information."""
+        data = self.model_dump()
+        data["type"] = self.__class__.__name__
+        return data
 
 
 class BinaryPrediction(BasePrediction):
     """Boolean detection + rationale (flattened as <name>_detected / <name>_rationale)."""
 
     detected: bool = Field(description="Set TRUE only with specific evidence.")
-    rationale: str = Field(description="Brief evidence/quote (≤25 words) explaining why.")
+    rationale: str = Field(description="Brief evidence/quote (<=25 words) explaining why.")
 
     @classmethod
     def to_tool_properties(
@@ -32,7 +53,21 @@ class BinaryPrediction(BasePrediction):
             f"{field_name}_detected": {"type": "boolean", "description": field_description},
             f"{field_name}_rationale": {"type": "string", "description": rationale_description},
         }
-
+    
+    @classmethod
+    def from_tool_args(
+        cls,
+        feature_name: str,
+        tool_args: dict[str, Any]
+    ) -> "BinaryPrediction":
+        detected = tool_args.get(f"{feature_name}_detected")
+        if detected is None:
+            raise PredictionMissingFieldError(f"Missing required field '{feature_name}_detected'")
+        rationale = tool_args.get(f"{feature_name}_rationale", "")
+        return cls(
+            detected=detected,
+            rationale=rationale,
+        )
 
 class TextPrediction(BasePrediction):
     """Free text output (flattened as <name>_text)."""
@@ -49,6 +84,20 @@ class TextPrediction(BasePrediction):
         return {
             f"{field_name}_text": {"type": "string", "description": field_description},
         }
+    
+
+    @classmethod
+    def from_tool_args(
+        cls,
+        feature_name: str,
+        tool_args: dict[str, Any]
+    ) -> "TextPrediction":
+        text = tool_args.get(f"{feature_name}_text")
+        if text is None:
+            raise PredictionMissingFieldError(f"Missing required field '{feature_name}_text'")
+        return cls(
+            text=text,
+        )
 
 
 L = TypeVar("L", bound=str)
@@ -58,7 +107,7 @@ class ClassificationPrediction(BasePrediction, Generic[L]):
     """Single-label classification + rationale (flattened as <name>_label / <name>_rationale)."""
 
     label: L = Field(description="Choose one label from the allowed set.")
-    rationale: str = Field(description="Brief evidence/quote (≤25 words) explaining why.")
+    rationale: str = Field(description="Brief evidence/quote (<=25 words) explaining why.")
 
     @classmethod
     def to_tool_properties(
@@ -83,3 +132,18 @@ class ClassificationPrediction(BasePrediction, Generic[L]):
             f"{field_name}": label_schema,
             f"{field_name}_rationale": {"type": "string", "description": rationale_description},
         }
+
+    @classmethod
+    def from_tool_args(
+        cls,
+        feature_name: str,
+        tool_args: dict[str, Any]
+    ) -> "ClassificationPrediction":
+        label = tool_args.get(feature_name)
+        if label is None:
+            raise PredictionMissingFieldError(f"Missing required field '{feature_name}'")
+        rationale = tool_args.get(f"{feature_name}_rationale", "")
+        return cls(
+            label=label,
+            rationale=rationale,
+        )

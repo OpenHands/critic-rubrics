@@ -278,7 +278,6 @@ def transform_for_annotator(
                 + content_blocks
                 + [
                     ChatCompletionTextObject(type="text", text="<< END LAST USER MESSAGE >>\n"),
-                    ChatCompletionTextObject(type="text", text=annotation_instruction_message.strip()),
                 ]
             )
 
@@ -288,5 +287,24 @@ def transform_for_annotator(
             transformed.append(ChatCompletionAssistantMessage(role="assistant", content=content_blocks))
         else:
             raise ValueError(f"Unexpected role {role}. Expected 'user', 'assistant', or 'tool'. Message idx={i}, content={content}")
+
+    # Add annotation instruction message to the last user or assistant message
+    if transformed and len(transformed) > 0:
+        last_message = transformed[-1]
+        if last_message["role"] == "user":
+            # Append the annotation instruction message to the last user message
+            if isinstance(last_message["content"], list):
+                last_message["content"].append(ChatCompletionTextObject(type="text", text=annotation_instruction_message.strip()))
+            elif isinstance(last_message["content"], str):
+                last_message["content"] += "\n" + annotation_instruction_message
+            else:
+                raise ValueError(f"Unexpected content type in last user message: {type(last_message['content'])}")
+        elif last_message["role"] == "assistant":
+            transformed.append(
+                ChatCompletionUserMessage(
+                    role="user",
+                    content=[{"type": "text", "text": annotation_instruction_message.strip()}],
+                )
+            )
 
     return transformed
