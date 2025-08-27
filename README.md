@@ -1,6 +1,6 @@
 # Critic Rubrics
 
-Type-safe LLM evaluation framework for structured prediction and analysis.
+Type-safe function-calling-based LLM-as-judge evaluation framework for structured prediction and analysis.
 
 ## Core Data Structures
 
