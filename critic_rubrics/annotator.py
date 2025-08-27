@@ -128,8 +128,14 @@ class Annotator:
             if model:  # always override model if provided
                 body["model"] = model
 
+            if "metadata" in request and request.get("metadata", {}).get("custom_request_id"):
+                custom_id = request["metadata"]["custom_request_id"]
+                request.pop("metadata")  # remove so it don't cause issues with LLM completions
+            else:
+                custom_id = f"req_{output_dir.name}_{i:08d}"
+
             line_obj = {
-                "custom_id": f"req_{output_dir.name}_{i:08d}",
+                "custom_id": custom_id,
                 "method": "POST",
                 "url": endpoint,
                 "body": body,
