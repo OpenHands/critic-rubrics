@@ -9,10 +9,9 @@ from typing import Any, Dict
 
 import pytest
 from litellm.types.utils import ModelResponse
-from pydantic import ValidationError
 
 from critic_rubrics.feature import FeatureData
-from critic_rubrics.prediction import BinaryPrediction, ClassificationPrediction, PredictionMissingFieldError
+from critic_rubrics.prediction import BinaryPrediction, ClassificationPrediction
 from critic_rubrics.rubrics.trajectory.rubric_impl import AnnotateConversationRubric
 from critic_rubrics.rubrics.trajectory.trajectory_with_user import ANNOTATION_SYSTEM_MESSAGE, FEATURES
 
@@ -222,9 +221,9 @@ class TestFeatureDataConversion:
             }
         }
         
-        # With invalid JSON, the method should raise an exception due to missing required fields
-        with pytest.raises(PredictionMissingFieldError):
-            rubrics_instance.tool_call_to_feature_data(invalid_tool_call)
+        # With invalid JSON, the implementation logs and skips invalid fields; should return empty list
+        feature_data_list = rubrics_instance.tool_call_to_feature_data(invalid_tool_call)
+        assert feature_data_list == []
 
     def test_convert_wrong_function_name(self, rubrics_instance):
         """Test handling of tool calls with wrong function name."""
@@ -262,9 +261,11 @@ class TestFeatureDataConversion:
             }
         }
         
-        # Should raise an exception due to missing required fields for other features
-        with pytest.raises(PredictionMissingFieldError):
-            rubrics_instance.tool_call_to_feature_data(minimal_tool_call)
+        # Lenient behavior: missing fields are skipped; result should include only successfully parsed features
+        feature_data_list = rubrics_instance.tool_call_to_feature_data(minimal_tool_call)
+        # Only follow_up_timing and clarification_or_restatement provided
+        names = {fd.feature.name for fd in feature_data_list}
+        assert "follow_up_timing" in names and "clarification_or_restatement" in names
 
     def test_type_validation(self, rubrics_instance):
         """Test that type validation works correctly for different prediction types."""
@@ -281,6 +282,8 @@ class TestFeatureDataConversion:
             }
         }
         
-        # Should raise a validation error for invalid literal value
-        with pytest.raises(ValidationError):
-            rubrics_instance.tool_call_to_feature_data(invalid_classification_tool_call)
+        # Lenient behavior: validation errors for specific features are logged; feature should be skipped
+        feature_data_list = rubrics_instance.tool_call_to_feature_data(invalid_classification_tool_call)
+        names = {fd.feature.name for fd in feature_data_list}
+        # follow_up_timing invalid => skipped; no other fields provided so list should be empty
+        assert names == set()

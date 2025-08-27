@@ -149,9 +149,6 @@ What to record
    - infrastructure_agent_caused_issue_detected for faults introduced by the agent's prior actions (e.g., orphaned server on port 8000).
    - Rationale: include the error/status line or brief description.
 
-5) Task type
-   - Pick one: coding, debugging, research, file_management, configuration, documentation, analysis, other.
-
 Evidence & quality
 - Prefer concrete, minimal quotes; avoid speculation. If evidence is insufficient, leave the flag false.
 - If the user intervened mid-stream and the request was ambiguous, consider insufficient_clarification.

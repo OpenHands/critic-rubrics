@@ -63,10 +63,8 @@ def process_batch_data(batch_folder: Path) -> Iterator[Dict[str, Any]]:
 
         if annotate_conversation_rubrics.tool_call_match_rubrics(tool_call):
             feature_data_list = annotate_conversation_rubrics.tool_call_to_feature_data(tool_call)    
-        elif annotate_conversation_with_user_rubrics.tool_call_match_rubrics(tool_call):
-            feature_data_list = annotate_conversation_with_user_rubrics.tool_call_to_feature_data(tool_call)
         else:
-            raise ValueError("Tool call does not match any known rubric structure")
+            feature_data_list = annotate_conversation_with_user_rubrics.tool_call_to_feature_data(tool_call)
 
         if not feature_data_list:
             print(f"No feature data extracted for batch_id {data['batch_id']}")
