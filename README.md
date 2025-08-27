@@ -2,6 +2,12 @@
 
 Type-safe function-calling-based LLM-as-judge evaluation framework for structured prediction and analysis.
 
+## To Install
+
+```bash
+pip install git+https://github.com/All-Hands-AI/critic-rubrics
+```
+
 ## Core Data Structures
 
 ### Prediction Types
