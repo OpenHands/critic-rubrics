@@ -9,8 +9,10 @@ import gzip
 import json
 import os
 from pathlib import Path
+from typing import Iterable
 
 import rich
+from litellm import ChatCompletionRequest
 
 from critic_rubrics import Annotator
 from critic_rubrics.rubrics import get_trajectory_level_rubrics
@@ -168,9 +170,17 @@ def main():
     rich.print(f"  Model: {args.model or 'default'}")
     rich.print(f"  Base URL: {args.base_url or 'default'}")
 
+    def modify_requests_generator(requests: Iterable[ChatCompletionRequest]) -> Iterable[ChatCompletionRequest]:
+        for request in requests:
+            if "o3" in args.model or "gpt-5" in args.model:
+                if "temperature" in request:
+                    request.pop("temperature")
+            request['reasoning_effort'] = 'high'  # type: ignore
+            yield request
+
     try:
         batch_ids = Annotator.batch_annotate(
-            requests,
+            modify_requests_generator(requests),
             args.output_dir,
             model=args.model,
             custom_llm_provider=args.model_provider,
@@ -178,6 +188,7 @@ def main():
             api_key=api_key,
             max_requests=args.max_requests,
             max_bytes=args.max_bytes,
+            delete_after_upload=False
         )
 
         rich.print(f"[bold green]Successfully created {len(batch_ids)} batch(es):[/bold green]")
