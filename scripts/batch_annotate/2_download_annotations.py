@@ -137,13 +137,20 @@ def main():
 
                     if status["status"] == "completed":
                         # Save results
-                        output_file = output_dir / f"{batch_name}_results.jsonl"
-                        with output_file.open("w") as f:
-                            for result in results:
-                                f.write(json.dumps(result) + "\n")
+                        if status["error"]:
+                            error_file = output_dir / f"{batch_name}_errors.jsonl"
+                            with error_file.open("w") as f:
+                                for error in results:
+                                    f.write(json.dumps(error) + "\n")
+                            progress.update(task, description=f"[red]✗ {batch_name} - {len(results)} errors saved")
+                        else:
+                            output_file = output_dir / f"{batch_name}_results.jsonl"
+                            with output_file.open("w") as f:
+                                for result in results:
+                                    f.write(json.dumps(result) + "\n")
+                            progress.update(task, description=f"[green]✓ {batch_name} - {len(results)} results saved")
 
                         completed_batches.append((batch_id, batch_name, len(results)))
-                        progress.update(task, description=f"[green]✓ {batch_name} - {len(results)} results saved")
 
                     elif status["status"] in ["failed", "expired", "cancelled"]:
                         failed_batches.append((batch_id, batch_name, status["status"]))

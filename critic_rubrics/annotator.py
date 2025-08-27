@@ -10,6 +10,18 @@ from litellm import ChatCompletionRequest, HttpxBinaryResponseContent, OpenAIFil
 from litellm.types.utils import LiteLLMBatch, ModelResponse
 
 
+def content_to_dicts(content: HttpxBinaryResponseContent) -> list[dict[str, Any]]:
+    """
+    Convert HTTP response content to a list of result dictionaries.
+    """
+    raw_bytes = content.read()
+    results = []
+    for line in raw_bytes.decode("utf-8").splitlines():
+        if line.strip():
+            results.append(json.loads(line))
+    return results
+
+
 class Annotator:
     """Mixin providing annotation capabilities for rubrics."""
 
@@ -176,24 +188,24 @@ class Annotator:
             "created_at": batch.created_at,
             "completed_at": batch.completed_at,
             "request_counts": batch.request_counts,
+            "error": False
         }
 
         # If not complete, return status only
         if batch.status != "completed":
             return status, []
 
+        if batch.error_file_id:
+            error_content = litellm.file_content(file_id=batch.error_file_id, custom_llm_provider=custom_llm_provider, **kwargs)
+            error_content = cast(HttpxBinaryResponseContent, error_content)
+            status["error"] = True
+            return status, content_to_dicts(error_content)
+
         # Download results
         if not batch.output_file_id:
             return status, []
 
-        content = litellm.file_content(file_id=batch.output_file_id, **kwargs)
+        content = litellm.file_content(file_id=batch.output_file_id, custom_llm_provider=custom_llm_provider, **kwargs)
         content = cast(HttpxBinaryResponseContent, content)
 
-        # Parse results
-        raw_bytes = content.read()
-        results = []
-        for line in raw_bytes.decode("utf-8").splitlines():
-            if line.strip():
-                results.append(json.loads(line))
-
-        return status, results
+        return status, content_to_dicts(content)
