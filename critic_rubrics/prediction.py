@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import Any, Generic, Literal, TypeVar, get_args, get_origin
 
 from pydantic import BaseModel, Field
@@ -6,7 +5,6 @@ from pydantic import BaseModel, Field
 
 class BasePrediction(BaseModel):
     
-    @abstractmethod
     @classmethod
     def to_tool_properties(
         cls,
@@ -18,7 +16,6 @@ class BasePrediction(BaseModel):
         raise NotImplementedError
     
 
-    @abstractmethod
     @classmethod
     def from_tool_args(
         cls,
@@ -26,7 +23,7 @@ class BasePrediction(BaseModel):
         tool_args: dict[str, Any]
     ) -> "BasePrediction":
         """Create a prediction instance from tool arguments."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def to_dict(self) -> dict[str, Any]:
         """Convert prediction to serializable dict with type information."""
