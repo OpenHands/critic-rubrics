@@ -9,9 +9,10 @@ from typing import Any, Dict
 
 import pytest
 from litellm.types.utils import ModelResponse
+from pydantic import ValidationError
 
 from critic_rubrics.feature import FeatureData
-from critic_rubrics.prediction import BinaryPrediction, ClassificationPrediction
+from critic_rubrics.prediction import BinaryPrediction, ClassificationPrediction, PredictionMissingFieldError
 from critic_rubrics.rubrics.trajectory.rubric_impl import AnnotateConversationRubric
 from critic_rubrics.rubrics.trajectory.trajectory_with_user import ANNOTATION_SYSTEM_MESSAGE, FEATURES
 
@@ -222,12 +223,8 @@ class TestFeatureDataConversion:
         }
         
         # With invalid JSON, the method should raise an exception due to missing required fields
-        try:
+        with pytest.raises(PredictionMissingFieldError):
             rubrics_instance.tool_call_to_feature_data(invalid_tool_call)
-            assert False, "Expected exception for invalid JSON"
-        except Exception:
-            # Expected to fail due to missing required fields
-            pass
 
     def test_convert_wrong_function_name(self, rubrics_instance):
         """Test handling of tool calls with wrong function name."""
@@ -266,12 +263,8 @@ class TestFeatureDataConversion:
         }
         
         # Should raise an exception due to missing required fields for other features
-        try:
+        with pytest.raises(PredictionMissingFieldError):
             rubrics_instance.tool_call_to_feature_data(minimal_tool_call)
-            assert False, "Expected exception for missing required fields"
-        except Exception:
-            # Expected to fail due to missing required fields
-            pass
 
     def test_type_validation(self, rubrics_instance):
         """Test that type validation works correctly for different prediction types."""
@@ -289,9 +282,5 @@ class TestFeatureDataConversion:
         }
         
         # Should raise a validation error for invalid literal value
-        try:
+        with pytest.raises(ValidationError):
             rubrics_instance.tool_call_to_feature_data(invalid_classification_tool_call)
-            assert False, "Expected validation error for invalid literal value"
-        except Exception:
-            # Expected to fail due to invalid literal value
-            pass
