@@ -42,7 +42,7 @@ def main():
 
     n_processed = 0
     for shard in shards:
-        print(f",  Enqueuing traces from {shard.name}…")
+        print(f",  Enqueuing traces from {shard.name}...")
         with open_shard_fn(shard) as f:
             for line in f:
                 data = json.loads(line)

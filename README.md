@@ -103,7 +103,7 @@ critic_rubrics/
     └── base.py      # BaseRubrics implementation
 ```
 
-Note: tests include legacy-compat checks for trajectory rubrics that aren’t present in the package yet.
+Note: tests include legacy-compat checks for trajectory rubrics that aren't present in the package yet.
 
 ## Contributing
 

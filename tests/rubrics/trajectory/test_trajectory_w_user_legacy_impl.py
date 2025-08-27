@@ -9,12 +9,12 @@ NON_USER_PROPERTIES_TO_EXPECT = {
     },
     "follow_up_timing_rationale": {
         "type": "string",
-        "description": "Evidence for timing with a brief quote (<=25 words). Examples: “Agent: ‘Here’s the final script.’ ” ,  post_completion; “Agent: ‘I’ll start tests…’ and user replied” ,  mid_conversation.",
+        "description": "Evidence for timing with a brief quote (<=25 words). Examples: “Agent: 'Here's the final script.' ” ,  post_completion; “Agent: 'I'll start tests...' and user replied” ,  mid_conversation.",
     },
     # /* USER FOLLOW-UP PATTERNS */
     "clarification_or_restatement_detected": {
         "type": "boolean",
-        "description": "User clarifies/restates or corrects interpretation. Examples: “That’s not what I meant…”, “I meant X, not Y.”, “Let me clarify…”",
+        "description": "User clarifies/restates or corrects interpretation. Examples: “That's not what I meant...”, “I meant X, not Y.”, “Let me clarify...”",
     },
     "clarification_or_restatement_rationale": {"type": "string", "description": "Quote the user and explain briefly."},
     "correction_detected": {
@@ -39,7 +39,7 @@ NON_USER_PROPERTIES_TO_EXPECT = {
     "progress_or_scope_concern_rationale": {"type": "string", "description": "Quote and explain briefly."},
     "frustration_or_complaint_detected": {
         "type": "boolean",
-        "description": "User expresses dissatisfaction or irritation. Examples: “This is wrong.”, “You’re not listening.”, excessive caps or punctuation (“!!!”, “???”).",
+        "description": "User expresses dissatisfaction or irritation. Examples: “This is wrong.”, “You're not listening.”, excessive caps or punctuation (“!!!”, “???”).",
     },
     "frustration_or_complaint_rationale": {"type": "string", "description": "Quote and explain briefly."},
     "removal_or_reversion_request_detected": {
@@ -52,17 +52,17 @@ NON_USER_PROPERTIES_TO_EXPECT = {
     # /* AGENT BEHAVIORAL ISSUES */
     "misunderstood_intention_detected": {
         "type": "boolean",
-        "description": "Agent misunderstood the user’s goal/intent. Examples: User asked for a summary; agent produced a rewrite; user wanted high-level bullets; agent delivered full code.",
+        "description": "Agent misunderstood the user's goal/intent. Examples: User asked for a summary; agent produced a rewrite; user wanted high-level bullets; agent delivered full code.",
     },
     "misunderstood_intention_rationale": {"type": "string", "description": "Quote evidence concisely (<=25 words) and explain in a sentence."},
     "did_not_follow_instruction_detected": {
         "type": "boolean",
-        "description": "Agent ignored or failed to comply with explicit instructions/system constraints. Examples: User: “Do NOT push to main.” Agent pushes; System says not to create a PR unless the user asks and the user didn’t ask; agent creates a PR; user asked for bullet points only, agent gives long prose.",
+        "description": "Agent ignored or failed to comply with explicit instructions/system constraints. Examples: User: “Do NOT push to main.” Agent pushes; System says not to create a PR unless the user asks and the user didn't ask; agent creates a PR; user asked for bullet points only, agent gives long prose.",
     },
     "did_not_follow_instruction_rationale": {"type": "string", "description": "Quote the instruction and the noncompliant action."},
     "insufficient_analysis_detected": {
         "type": "boolean",
-        "description": "Didn’t explore existing materials (prior code/docs/examples) before acting. Examples: User points to an existing function/file that is relevant or already solves it; agent reinvents it.",
+        "description": "Didn't explore existing materials (prior code/docs/examples) before acting. Examples: User points to an existing function/file that is relevant or already solves it; agent reinvents it.",
     },
     "insufficient_analysis_rationale": {"type": "string", "description": "Explain with evidence (e.g., user points to existing file)."},
     "insufficient_clarification_detected": {
@@ -76,7 +76,7 @@ NON_USER_PROPERTIES_TO_EXPECT = {
     },
     "improper_tool_use_or_setup_rationale": {"type": "string", "description": "Cite commands/errors and explain briefly."},
     "loop_behavior_detected": {"type": "boolean", "description": "Repeats the same failed action 3+ times without strategy change."},
-    "loop_behavior_rationale": {"type": "string", "description": "Describe the repetitions and counts (e.g., ‘same curl 3× ,  401 each time’)."},
+    "loop_behavior_rationale": {"type": "string", "description": "Describe the repetitions and counts (e.g., 'same curl 3× ,  401 each time')."},
     "insufficient_testing_detected": {
         "type": "boolean",
         "description": "Skipped reasonable verification/tests for non-trivial or risky changes (trivial edits may be acceptable). Examples: No run/validation for a new parser; no check that a migration applies cleanly; no sanity check of output.",
@@ -111,7 +111,7 @@ NON_USER_PROPERTIES_TO_EXPECT = {
     "infrastructure_external_issue_rationale": {"type": "string", "description": "Quote the error/status and explain briefly."},
     "infrastructure_agent_caused_issue_detected": {
         "type": "boolean",
-        "description": "Infrastructure faults introduced by the agent’s prior actions. Examples: agent leaves server on port 8000 -> later start on 8000 fails; agent fills disk with logs -> later writes fail.",
+        "description": "Infrastructure faults introduced by the agent's prior actions. Examples: agent leaves server on port 8000 -> later start on 8000 fails; agent fills disk with logs -> later writes fail.",
     },
     "infrastructure_agent_caused_issue_rationale": {"type": "string", "description": "Describe the agent-caused condition and the resulting failure."},
 }

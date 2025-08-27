@@ -54,13 +54,13 @@ Multiple issues can co-occur. For each issue:
 2) Provide a short, specific rationale quoting concrete evidence (agent actions, errors).
 
 AGENT BEHAVIORAL ISSUES
-- misunderstood_intention: Agent misunderstood the user’s goal/intent.
+- misunderstood_intention: Agent misunderstood the user's goal/intent.
   - Examples: User asked for a summary and agent produced a rewrite; user wanted high-level bullets but agent delivered full code.
 
 - did_not_follow_instruction: Agent ignored or failed to comply with explicit instructions/system constraints.
   - Examples: User: 'Do NOT push to main.' Agent pushes to main; System says not to create pull request unless user asks for it and user didn't ask for it, agent creates pull request; user asked for bullet points only, agent gives long prose.
 
-- insufficient_analysis: Didn’t explore existing materials sufficiently (prior code/docs/examples) before acting.
+- insufficient_analysis: Didn't explore existing materials sufficiently (prior code/docs/examples) before acting.
   - Examples: User points to an existing function/file that is relavant OR already solves it; agent reinvents it.
 
 - insufficient_clarification: Failed to ask necessary questions before acting when requirements were ambiguous.
@@ -96,7 +96,7 @@ INFRASTRUCTURE (EXTERNAL vs AGENT-CAUSED)
 - infrastructure_external_issue: Environment/platform limits outside agent control.
   - Examples: Provider outage; disk full on managed runner; missing enterprise API key; network failure not caused by agent.
 
-- infrastructure_agent_caused_issue: Infrastructure fault introduced by the agent’s prior actions.
+- infrastructure_agent_caused_issue: Infrastructure fault introduced by the agent's prior actions.
   - Examples: Agent leaves a server running on port 8000; later start on 8000 fails; agent fills the disk with logs earlier, causing later writes to fail.
 
 ========================
@@ -125,7 +125,7 @@ What to record
 
 2) Infrastructure
    - infrastructure_external_issue_detected for environment/platform limits beyond agent control.
-   - infrastructure_agent_caused_issue_detected for faults introduced by the agent’s prior actions (e.g., orphaned server on port 8000).
+   - infrastructure_agent_caused_issue_detected for faults introduced by the agent's prior actions (e.g., orphaned server on port 8000).
    - Rationale: include the error/status line or brief description.
 
 
@@ -133,8 +133,8 @@ Evidence & quality
 - Prefer concrete, minimal quotes; avoid speculation. If evidence is insufficient, leave the flag false.
 
 Quick disambiguation (common splits)
-- insufficient_analysis vs insufficient_clarification: didn’t look for existing work vs didn’t ask when requirements were ambiguous.
-- insufficient_testing vs insufficient_debugging: skipped reasonable verification vs didn’t investigate a failing state enough to make progress.
+- insufficient_analysis vs insufficient_clarification: didn't look for existing work vs didn't ask when requirements were ambiguous.
+- insufficient_testing vs insufficient_debugging: skipped reasonable verification vs didn't investigate a failing state enough to make progress.
 """
 
 FEATURES = [

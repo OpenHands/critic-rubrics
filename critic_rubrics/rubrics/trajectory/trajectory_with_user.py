@@ -5,18 +5,18 @@ from ...feature import Feature
 from ...prediction import BinaryPrediction, ClassificationPrediction
 
 
-ANNOTATION_SYSTEM_MESSAGE = """You are an AI conversation annotator analyzing agent–user interactions to identify failure patterns. You are NOT participating in the conversation; you are an external observer evaluating what went wrong.
+ANNOTATION_SYSTEM_MESSAGE = """You are an AI conversation annotator analyzing agent-user interactions to identify failure patterns. You are NOT participating in the conversation; you are an external observer evaluating what went wrong.
 
 ========================
 CONVERSATION STRUCTURE
 ========================
 - Focus on the LAST AGENT MESSAGE and the LAST USER MESSAGE (if any).
-- Determine WHEN the user’s follow-up occurred:
+- Determine WHEN the user's follow-up occurred:
   - 'mid_conversation': The agent had not clearly finished or handed off.
   - 'post_completion': The agent signaled completion or handoff (e.g., final answer, 'done', 'all set').
   - 'no_follow_up': No user reply after the last agent message.
 
-In your timing rationale, note what the agent was doing when the user intervened (quote brief evidence, e.g., 'Agent: ‘I’ll start running tests…’ ->  user replied next.', or 'Agent: ‘Here’s the final script.’ ').
+In your timing rationale, note what the agent was doing when the user intervened (quote brief evidence, e.g., 'Agent: 'I'll start running tests...' ->  user replied next.', or 'Agent: 'Here's the final script.' ').
 
 ========================
 CONTEXT SOURCES
@@ -32,7 +32,7 @@ Multiple issues can co-occur. For each issue:
 
 USER FOLLOW-UP PATTERNS
 - clarification_or_restatement: User clarifies/restates or corrects interpretation.
-  - Examples: 'That’s not what I meant…', 'I meant X, not Y.', 'Let me clarify…'
+  - Examples: 'That's not what I meant...', 'I meant X, not Y.', 'Let me clarify...'
 
 - correction: Agent basically understood the intention, but executed it incorrectly (fix technique/parameters/details).
   - Examples: 'Use DESC not ASC.', 'Right table, wrong WHERE clause.', 'Same approach, but wrong sort key.'
@@ -59,19 +59,19 @@ MUTUAL-EXCLUSIVITY RULE (Core Follow-up Set)
 - By default, choose only one among: clarification_or_restatement, correction, direction_change, vcs_update_requests.
 - Co-tag only when the user message clearly contains distinct parts that independently satisfy multiple categories.
 - Tie-break order and guidance:
-  1) direction_change — user adds/changes goals/constraints OR asks for information that redirects the plan/approach. **Do not include VCS update instructions** (commit/push/PR); those are vcs_update_requests.
-  2) vcs_update_requests — user instructs forward-moving VCS tasks. This **does not count as direction_change**.
-  3) clarification_or_restatement — user clarifies intent/meaning without changing goals/constraints.
-  4) correction — goal stands; user fixes execution details (params/technique/scope).
+  1) direction_change - user adds/changes goals/constraints OR asks for information that redirects the plan/approach. **Do not include VCS update instructions** (commit/push/PR); those are vcs_update_requests.
+  2) vcs_update_requests - user instructs forward-moving VCS tasks. This **does not count as direction_change**.
+  3) clarification_or_restatement - user clarifies intent/meaning without changing goals/constraints.
+  4) correction - goal stands; user fixes execution details (params/technique/scope).
 
 AGENT BEHAVIORAL ISSUES
-- misunderstood_intention: Agent misunderstood the user’s goal/intent.
+- misunderstood_intention: Agent misunderstood the user's goal/intent.
   - Examples: User asked for a summary and agent produced a rewrite; user wanted high-level bullets but agent delivered full code.
 
 - did_not_follow_instruction: Agent ignored or failed to comply with explicit instructions/system constraints.
   - Examples: User: 'Do NOT push to main.' Agent pushes to main; System says not to create pull request unless user asks for it and user didn't ask for it, agent creates pull request; user asked for bullet points only, agent gives long prose.
 
-- insufficient_analysis: Didn’t explore existing materials sufficiently (prior code/docs/examples) before acting.
+- insufficient_analysis: Didn't explore existing materials sufficiently (prior code/docs/examples) before acting.
   - Examples: User points to an existing function/file that is relavant OR already solves it; agent reinvents it.
 
 - insufficient_clarification: Failed to ask necessary questions before acting when requirements were ambiguous.
@@ -107,7 +107,7 @@ INFRASTRUCTURE (EXTERNAL vs AGENT-CAUSED)
 - infrastructure_external_issue: Environment/platform limits outside agent control.
   - Examples: Provider outage; disk full on managed runner; missing enterprise API key; network failure not caused by agent.
 
-- infrastructure_agent_caused_issue: Infrastructure fault introduced by the agent’s prior actions.
+- infrastructure_agent_caused_issue: Infrastructure fault introduced by the agent's prior actions.
   - Examples: Agent leaves a server running on port 8000; later start on 8000 fails; agent fills the disk with logs earlier, causing later writes to fail.
 
 ========================
@@ -146,7 +146,7 @@ What to record
 
 4) Infrastructure
    - infrastructure_external_issue_detected for environment/platform limits beyond agent control.
-   - infrastructure_agent_caused_issue_detected for faults introduced by the agent’s prior actions (e.g., orphaned server on port 8000).
+   - infrastructure_agent_caused_issue_detected for faults introduced by the agent's prior actions (e.g., orphaned server on port 8000).
    - Rationale: include the error/status line or brief description.
 
 5) Task type
@@ -159,8 +159,8 @@ Evidence & quality
 Quick disambiguation (common splits)
 - correction vs misunderstood_intention: right goal, wrong details vs wrong goal altogether.
 - did_not_follow_instruction vs direction_change: ignored a clear instruction vs user adds new requirement later.
-- insufficient_analysis vs insufficient_clarification: didn’t look for existing work vs didn’t ask when requirements were ambiguous.
-- insufficient_testing vs insufficient_debugging: skipped reasonable verification vs didn’t investigate a failing state enough to make progress.
+- insufficient_analysis vs insufficient_clarification: didn't look for existing work vs didn't ask when requirements were ambiguous.
+- insufficient_testing vs insufficient_debugging: skipped reasonable verification vs didn't investigate a failing state enough to make progress.
 - direction_change includes information seeking / question asking that redirects scope/approach.
 - vcs_update_requests is not direction_change; it covers forward-moving VCS steps (commit, branch, push, open/merge PR, tag).
 - Requests to revert/reset/remove belong to removal_or_reversion_request.
@@ -190,7 +190,7 @@ FEATURES = [
 
     Feature(
         name="clarification_or_restatement",
-        description="User clarifies/restates or corrects interpretation. Examples: 'That’s not what I meant…', 'I meant X, not Y.', 'Let me clarify…'",
+        description="User clarifies/restates or corrects interpretation. Examples: 'That's not what I meant...', 'I meant X, not Y.', 'Let me clarify...'",
         prediction_type=BinaryPrediction
     ),
     Feature(
@@ -220,7 +220,7 @@ FEATURES = [
     ),
     Feature(
         name="frustration_or_complaint",
-        description=("User expresses dissatisfaction or irritation. Examples: 'This is wrong.', 'You’re not listening.', excessive caps or punctuation ('!!!', '???')."),
+        description=("User expresses dissatisfaction or irritation. Examples: 'This is wrong.', 'You're not listening.', excessive caps or punctuation ('!!!', '???')."),
         prediction_type=BinaryPrediction
     ),
     Feature(
