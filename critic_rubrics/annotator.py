@@ -193,9 +193,9 @@ class Annotator:
 
         # If not complete, return status only
         if batch.status != "completed":
-            return status, []
+            return status, [], []
 
-        error_content = None
+        error_content = []
         if batch.error_file_id:
             error_content = litellm.file_content(file_id=batch.error_file_id, custom_llm_provider=custom_llm_provider, **kwargs)
             error_content = cast(HttpxBinaryResponseContent, error_content)
@@ -204,7 +204,7 @@ class Annotator:
 
         # Download results
         if not batch.output_file_id:
-            return status, []
+            return status, [], []
 
         content = litellm.file_content(file_id=batch.output_file_id, custom_llm_provider=custom_llm_provider, **kwargs)
         content = cast(HttpxBinaryResponseContent, content)
