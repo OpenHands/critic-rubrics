@@ -129,7 +129,7 @@ def main():
                 task = progress.add_task(f"Checking {batch_name}...", total=None)
 
                 try:
-                    status, results = Annotator.get_batch_results(
+                    status, results, error_results = Annotator.get_batch_results(
                         batch_id,
                         custom_llm_provider=args.model_provider,
                         base_url=args.base_url,
@@ -138,22 +138,23 @@ def main():
 
                     if status["status"] == "completed":
                         # Save results
-                        if status["error"]:
+                        if error_results:
                             error_file = output_dir / f"{batch_name}_errors.jsonl"
                             with error_file.open("w") as f:
-                                for error in results:
+                                for error in error_results:
                                     f.write(json.dumps(error) + "\n")
                             msg = f"✗ {batch_name} - {len(results)} errors saved to {error_file}"
                             progress.update(task, description=f"[red]{msg}")
                             progress_log.append(f"[red]{msg}[/red]")
-                        else:
-                            output_file = output_dir / f"{batch_name}_outputs.jsonl"
-                            with output_file.open("w") as f:
-                                for result in results:
-                                    f.write(json.dumps(result) + "\n")
-                            msg = f"✓ {batch_name} - {len(results)} results saved to {output_file}"
-                            progress.update(task, description=f"[green]{msg}")
-                            progress_log.append(f"[green]{msg}[/green]")
+
+                        # Save outputs
+                        output_file = output_dir / f"{batch_name}_outputs.jsonl"
+                        with output_file.open("w") as f:
+                            for result in results:
+                                f.write(json.dumps(result) + "\n")
+                        msg = f"✓ {batch_name} - {len(results)} results saved to {output_file}"
+                        progress.update(task, description=f"[green]{msg}")
+                        progress_log.append(f"[green]{msg}[/green]")
 
                         completed_batches.append((batch_id, batch_name, len(results)))
 
