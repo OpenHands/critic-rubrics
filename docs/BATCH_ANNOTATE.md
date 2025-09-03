@@ -37,7 +37,7 @@ Trace files contain conversation segments in JSONL format:
             {"role": "assistant", "content": "I'll analyze your code..."}
         ],  # i.e., "messages" for OpenAI completion format
         "tools": [...],  # Available tools
-        "follow_up_user_message": {"role": "user", "content": "Thanks!"} | None # Optional field
+        "follow_up_user_message": {"role": "user", "content": "Thanks!"} | None
     }
 }
 ```
