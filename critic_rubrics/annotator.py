@@ -171,7 +171,7 @@ class Annotator:
         *,
         base_url: str | None = None,
         api_key: str | None = None,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]] | None]:
         """Get batch status and results if ready."""
         kwargs = {}
         if base_url:
@@ -193,19 +193,20 @@ class Annotator:
 
         # If not complete, return status only
         if batch.status != "completed":
-            return status, []
+            return status, [], []
 
+        error_content = []
         if batch.error_file_id:
             error_content = litellm.file_content(file_id=batch.error_file_id, custom_llm_provider=custom_llm_provider, **kwargs)
             error_content = cast(HttpxBinaryResponseContent, error_content)
             status["error"] = True
-            return status, content_to_dicts(error_content)
+            error_content = content_to_dicts(error_content)
 
         # Download results
         if not batch.output_file_id:
-            return status, []
+            return status, [], []
 
         content = litellm.file_content(file_id=batch.output_file_id, custom_llm_provider=custom_llm_provider, **kwargs)
         content = cast(HttpxBinaryResponseContent, content)
 
-        return status, content_to_dicts(content)
+        return status, content_to_dicts(content), error_content
