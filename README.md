@@ -8,7 +8,7 @@ Type-safe function-calling-based LLM-as-judge evaluation framework for structure
 ## To Install
 
 ```bash
-pip install git+https://github.com/All-Hands-AI/critic-rubrics
+pip install git+https://github.com/OpenHands/critic-rubrics
 ```
 
 ## Core Data Structures
