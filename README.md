@@ -1,9 +1,18 @@
-# Critic Rubrics
+<div align="center">
+  <img src="https://raw.githubusercontent.com/OpenHands/docs/main/openhands/static/img/logo.png?raw=true" alt="Logo" width="200">
+  <h1 align="center">OpenHands Critic Rubrics</h1>
+</div>
 
-Type-safe function-calling-based LLM-as-judge evaluation framework for structured prediction and analysis.
+<p align="center">
+<a href="https://arxiv.org/abs/2603.03800">Paper</a> •
+<a href="https://huggingface.co/OpenHands/openhands-critic-4b-v1.0">Model</a> •
+<a href="https://docs.openhands.dev/sdk/guides/critic">Docs (SDK)</a> •
+<a href="https://docs.openhands.dev/openhands/usage/cli/critic">Docs (OpenHands CLI)</a>
+</p>
 
-> [!WARNING]
-> This repository is an active research project. APIs and implementations are subject to major changes. Use with caution.
+Type-safe function-calling-based LLM-as-judge evaluation framework for agent behavior prediction and analysis.
+
+Official repo for paper ["A Rubric-Supervised Critic from Sparse Real-World Outcomes"](https://arxiv.org/abs/2603.03800).
 
 ## To Install
 
@@ -240,4 +249,19 @@ features = rubric.tool_call_to_feature_data(tool_call)
 for feature_data in features:
     pred = feature_data.prediction
     print(f"{feature_data.feature.name}: {pred.detected} - {pred.rationale}")
+```
+
+
+## Citation
+
+```bibtex
+@misc{wang2026rubricsupervisedcriticsparserealworld,
+      title={A Rubric-Supervised Critic from Sparse Real-World Outcomes}, 
+      author={Xingyao Wang and Valerie Chen and Heng Ji and Graham Neubig},
+      year={2026},
+      eprint={2603.03800},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2603.03800}, 
+}
 ```
