@@ -5,7 +5,7 @@ description = "Unified rubrics system for LLM-based feature extraction and conve
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "litellm>=1.76.0",
+    "litellm==1.84.0rc1",
     "pydantic>=2.11.7",
     "rich>=14.1.0",
     "tenacity>=8.5.0",
